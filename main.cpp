@@ -42,6 +42,7 @@ int main() {
     runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::default_compiler_config();
+    compiler_config.hacks.restructure_everything = true;
     shady::Runtime* runtime = shady::initialize_runtime(runtime_config);
     shady::Device* device = shady::get_an_device(runtime);
     assert(device);
@@ -52,8 +53,8 @@ int main() {
     assert(ok);
 
     shady::IrArena* a = new_ir_arena(shady::default_arena_config());
-    shady::Module* m = new_module(a, "vcc_rt_demo");
-    shady::driver_load_source_file(shady::SrcLLVM, size, src, m);
+    shady::Module* m;
+    shady::driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
     shady::Program* program = new_program_from_module(runtime, &compiler_config, m);
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
