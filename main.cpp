@@ -2,6 +2,8 @@
 #include <cassert>
 #include <cmath>
 
+#include <cstdint>
+
 extern "C" {
 namespace shady {
 
@@ -52,7 +54,6 @@ int main() {
     bool ok = read_file("main_gpu.ll", &size, &src);
     assert(ok);
 
-    shady::IrArena* a = new_ir_arena(shady::default_arena_config());
     shady::Module* m;
     shady::driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
     shady::Program* program = new_program_from_module(runtime, &compiler_config, m);
@@ -90,7 +91,8 @@ int main() {
         int nspheres = cpu_spheres.size();
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
-        wait_completion(launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data()));
+        shady::ExtraKernelOptions launch_options {};
+        wait_completion(launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
 
         copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 

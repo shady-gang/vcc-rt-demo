@@ -26,20 +26,6 @@ float dot(vec3 a, vec3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-float lengthSquared(vec3 v) {
-    return dot(v, v);
-}
-
-float sqrtf(float f) __asm__("shady::prim_op::sqrt");
-
-float length(vec3 v) {
-    return sqrtf(lengthSquared(v));
-}
-
-vec3 normalize(vec3 v) {
-    return v / length(v);
-}
-
 Hit intersect(Ray r, Sphere s) {
     vec3 rs = r.origin - s.center;
     float b = dot(rs, r.dir);
@@ -67,7 +53,7 @@ int32_t pack_color(vec3 color) {
 }
 
 compute_shader local_size(16, 16, 1)
-void main(int width, int height, global int32_t* buf, int nspheres, global Sphere* spheres) {
+void main(int width, int height, __attribute__((address_space(1))) int32_t* buf, int nspheres, __attribute__((address_space(1))) Sphere* spheres) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
