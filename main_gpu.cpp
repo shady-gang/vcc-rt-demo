@@ -46,14 +46,14 @@ Hit intersect(Ray r, Sphere s) {
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
-extern "C" {
-
 int32_t pack_color(vec3 color) {
     return (((int) (color.x * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.z * 255) & 0xFF);
 }
 
+extern "C" {
+
 compute_shader local_size(16, 16, 1)
-void main(int width, int height, __attribute__((address_space(1))) int32_t* buf, int nspheres, __attribute__((address_space(1))) Sphere* spheres) {
+void main(int width, int height, int32_t* buf, int nspheres, Sphere* spheres) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
