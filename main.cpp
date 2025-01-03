@@ -43,11 +43,13 @@ int main() {
     shady::RuntimeConfig runtime_config = {};
     runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
-    shady::CompilerConfig compiler_config = shady::default_compiler_config();
-    compiler_config.hacks.restructure_everything = true;
-    shady::Runtime* runtime = shady::initialize_runtime(runtime_config);
-    shady::Device* device = shady::get_an_device(runtime);
+    shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
+    compiler_config.input_cf.restructure_with_heuristics = true;
+    shady::Runtime* runtime = shd_rt_initialize(runtime_config);
+    shady::Device* device = shd_rt_get_an_device(runtime);
     assert(device);
+
+    // auto x = shd_rt_initialize(nullptr);
 
     size_t size;
     char* src;
@@ -55,8 +57,8 @@ int main() {
     assert(ok);
 
     shady::Module* m;
-    shady::driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
-    shady::Program* program = new_program_from_module(runtime, &compiler_config, m);
+    shd_driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
+    shady::Program* program = shd_rt_new_program_from_module(runtime, &compiler_config, m);
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
     uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
@@ -66,9 +68,9 @@ int main() {
         }
     }
 
-    shady::Buffer* gpu_fb = shady::allocate_buffer_device(device, fb_size);
-    uint64_t fb_gpu_addr = shady::get_buffer_device_pointer(gpu_fb);
-    copy_to_buffer(gpu_fb, 0, cpu_fb, fb_size);
+    shady::Buffer* gpu_fb = shd_rt_allocate_buffer_device(device, fb_size);
+    uint64_t fb_gpu_addr = shd_rt_get_buffer_device_pointer(gpu_fb);
+    shd_rt_copy_to_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
     std::vector<Sphere> cpu_spheres;
     for (size_t i = 0; i < 256; i++) {
@@ -77,9 +79,9 @@ int main() {
         cpu_spheres.emplace_back(s);
     }
 
-    shady::Buffer* gpu_spheres = shady::allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
-    uint64_t spheres_gpu_addr = shady::get_buffer_device_pointer(gpu_spheres);
-    copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
+    shady::Buffer* gpu_spheres = shd_rt_allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
+    uint64_t spheres_gpu_addr = shd_rt_get_buffer_device_pointer(gpu_spheres);
+    shd_rt_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
     do {
         int state;
@@ -92,9 +94,9 @@ int main() {
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
         shady::ExtraKernelOptions launch_options {};
-        wait_completion(launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+        shd_rt_wait_completion(shd_rt_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
 
-        copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+        shd_rt_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
         state = mfb_update_ex(window, cpu_fb, WIDTH, HEIGHT);
         if (state < 0) {
