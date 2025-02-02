@@ -17,6 +17,7 @@ namespace shady {
 bool read_file(const char* filename, size_t* size, char** output);
 
 #include "cunk/graphics.h"
+#include "cunk/camera.h"
 #include "GLFW/glfw3.h"
 GLFWwindow* gfx_get_glfw_handle(Window*);
 }
@@ -40,6 +41,13 @@ float rng() {
 }
 
 void blitImage(Window* window, GfxCtx* ctx, uint32_t* image);
+
+Camera camera;
+CameraFreelookState camera_state = {
+    .fly_speed = 0.1f,
+    .mouse_sensitivity = 1.0,
+};
+CameraInput camera_input;
 
 int main() {
     GfxCtx* gfx_ctx;
@@ -90,8 +98,23 @@ int main() {
     uint64_t spheres_gpu_addr = shd_rt_get_buffer_device_pointer(gpu_spheres);
     shd_rt_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
+    glfwSwapInterval(1);
     do {
         std::vector<void*> args;
+        //args.push_back(&camera);
+        /*Vec3f forward = camera_get_forward_vec(&camera);
+        forward = Vec3f { 1.0f, 0.0, 0.0, };
+        args.push_back(&forward);
+        Vec3f left = camera_get_left_vec(&camera);
+        args.push_back(&left);
+        Vec3f up = { 0.0, 1.0f, 0.0f };
+        args.push_back(&up);*/
+        Vec3f pos = camera.position;
+        args.push_back(&pos.x);
+        args.push_back(&pos.y);
+        args.push_back(&pos.z);
+        args.push_back(&camera.rotation.pitch);
+        args.push_back(&camera.rotation.yaw);
         args.push_back(&WIDTH);
         args.push_back(&HEIGHT);
         args.push_back(&fb_gpu_addr);
@@ -99,6 +122,13 @@ int main() {
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
         shady::ExtraKernelOptions launch_options {};
+
+        gfx_camera_update(window, &camera_input);
+        camera_move_freelook(&camera, &camera_input, &camera_state);
+
+        //printf("%f %f %d\n", camera.position.x, camera.rotation.pitch, camera_input.keys.forward);
+        printf("%f %f %f\n", camera.position.x, camera.position.y, camera.position.z);
+
         shd_rt_wait_completion(shd_rt_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
 
         shd_rt_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
