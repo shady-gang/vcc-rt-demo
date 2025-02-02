@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <array>
+#include <vector>
 
 #include <cstdint>
 
@@ -14,9 +16,11 @@ namespace shady {
 
 bool read_file(const char* filename, size_t* size, char** output);
 
+#include "cunk/graphics.h"
+#include "GLFW/glfw3.h"
+GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
-#include "MiniFB.h"
 
 int WIDTH = 800, HEIGHT = 600;
 
@@ -35,8 +39,11 @@ float rng() {
     return n;
 }
 
+void blitImage(Window* window, GfxCtx* ctx, uint32_t* image);
+
 int main() {
-    struct mfb_window *window = mfb_open_ex("my display", WIDTH, HEIGHT, WF_RESIZABLE);
+    GfxCtx* gfx_ctx;
+    Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
     if (!window)
         return 0;
 
@@ -84,8 +91,6 @@ int main() {
     shd_rt_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
     do {
-        int state;
-
         std::vector<void*> args;
         args.push_back(&WIDTH);
         args.push_back(&HEIGHT);
@@ -98,11 +103,9 @@ int main() {
 
         shd_rt_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
-        state = mfb_update_ex(window, cpu_fb, WIDTH, HEIGHT);
-        if (state < 0) {
-            window = NULL;
-            break;
-        }
-    } while(mfb_wait_sync(window));
+        blitImage(window, gfx_ctx, cpu_fb);
+        glfwSwapBuffers(gfx_get_glfw_handle(window));
+        glfwPollEvents();
+    } while(!glfwWindowShouldClose(gfx_get_glfw_handle(window)));
     return 0;
 }
