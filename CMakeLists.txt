@@ -6,7 +6,7 @@ add_subdirectory(cunk)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(minifb REQUIRED)
+find_package(glfw3 REQUIRED)
 find_package(shady REQUIRED)
 add_executable(vcc_rt_demo main.cpp util.c blit.cpp)
 target_link_libraries(vcc_rt_demo PRIVATE shady::runtime shady::driver shady::api glfw graphics bvh)
