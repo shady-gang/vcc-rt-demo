@@ -111,7 +111,7 @@ Hit intersect(Ray r, Sphere s) {
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
 int32_t pack_color(vec3 color) {
-    return (((int) (color.x * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.z * 255) & 0xFF);
+    return (((int) (color.z * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.x * 255) & 0xFF);
 }
 float sinf(float) __asm__("shady::prim_op::sin");
 float cosf(float) __asm__("shady::prim_op::cos");
@@ -161,7 +161,7 @@ void main(float px, float py, float pz, float rx, float ry, int width, int heigh
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
         return;
-    buf[(y * width + x)] = ((x & 0xFF) << 8) | (y & 0xFF);
+    //buf[(y * width + x)] = ((x & 0xFF) << 8) | (y & 0xFF);
 
     Camera cam;
     cam.rotation.pitch = rx;
@@ -177,13 +177,13 @@ void main(float px, float py, float pz, float rx, float ry, int width, int heigh
     forward.z = 0.0f;
     Ray r = { origin, normalize(vec3(0.0f, dx, dy) + vec3f_to_vec3(forward)) };*/
     //Ray r = { origin, normalize(vec3f_to_vec3(forward)) };
-    buf[(y * width + x)] = pack_color(r.dir);
+    buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
-    Hit nearest_hit = { -1.0f };
+    Hit nearest_hit = { -1 };
     for (int i = 0; i < nspheres; i++) {
         Sphere s = ((Sphere*)spheres)[i];
         Hit hit = intersect(r, s);
-        if (hit.t > nearest_hit.t && hit.t > 0.0f)
+        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
     }
 
