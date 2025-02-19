@@ -25,7 +25,7 @@ static std::string test_vs = "#version 110\n"
                              "    gl_Position = vec4(vertexIn, 0.0, 1.0);\n"
                              "    texCoord = vertexIn;\n"
                              "}";
-static std::string test_fs = "#version 130\n"
+static std::string test_fs = "#version 110\n"
                              "\n"
                              "#define outputColor gl_FragData[0]\n"
                              "\n"
@@ -33,7 +33,7 @@ static std::string test_fs = "#version 130\n"
                              "varying vec2 texCoord;\n"
                              "\n"
                              "void main() {\n"
-                             "    outputColor = texture(the_texture, texCoord * 0.5 + vec2(0.5));\n"
+                             "    outputColor = texture2D(the_texture, texCoord * 0.5 + vec2(0.5));\n"
                              "}";
 
 void blitImage(Window* window, GfxCtx* ctx, uint32_t* image) {
