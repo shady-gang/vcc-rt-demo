@@ -101,20 +101,7 @@ int main() {
     glfwSwapInterval(1);
     do {
         std::vector<void*> args;
-        //args.push_back(&camera);
-        /*Vec3f forward = camera_get_forward_vec(&camera);
-        forward = Vec3f { 1.0f, 0.0, 0.0, };
-        args.push_back(&forward);
-        Vec3f left = camera_get_left_vec(&camera);
-        args.push_back(&left);
-        Vec3f up = { 0.0, 1.0f, 0.0f };
-        args.push_back(&up);*/
-        Vec3f pos = camera.position;
-        args.push_back(&pos.x);
-        args.push_back(&pos.y);
-        args.push_back(&pos.z);
-        args.push_back(&camera.rotation.pitch);
-        args.push_back(&camera.rotation.yaw);
+        args.push_back(&camera);
         args.push_back(&WIDTH);
         args.push_back(&HEIGHT);
         args.push_back(&fb_gpu_addr);

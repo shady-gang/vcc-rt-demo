@@ -156,20 +156,15 @@ vec3 vec3f_to_vec3(Vec3f v) {
 }
 
 compute_shader local_size(16, 16, 1)
-void main(float px, float py, float pz, float rx, float ry, int width, int height, int32_t* buf, int nspheres, Sphere* spheres) {
+void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
         return;
-    //buf[(y * width + x)] = ((x & 0xFF) << 8) | (y & 0xFF);
-
-    Camera cam;
-    cam.rotation.pitch = rx;
-    cam.rotation.yaw = ry;
 
     float dx = (x / (float) width) * 2.0f - 1;
     float dy = (y / (float) height) * 2.0f - 1;
-    vec3 origin = vec3(px, py, pz);
+    vec3 origin = vec3f_to_vec3(cam.position);
     //Ray r = { origin, normalize(vec3(dx, dy, -1.0f)) };
     Ray r = { origin, normalize(vec3f_to_vec3(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f)))) };
     /*forward.x = 1.0f;
