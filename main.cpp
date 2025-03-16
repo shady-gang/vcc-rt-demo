@@ -9,7 +9,7 @@
 extern "C" {
 namespace shady {
 
-#include "shady/runtime.h"
+#include "shady/runner.h"
 #include "shady/driver.h"
 
 }
@@ -55,16 +55,16 @@ int main() {
     if (!window)
         return 0;
 
-    shady::RuntimeConfig runtime_config = {};
+    shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
-    shady::Runtime* runtime = shd_rt_initialize(runtime_config);
-    shady::Device* device = shd_rt_get_an_device(runtime);
+    shady::Runner* runner = shd_rn_initialize(runtime_config);
+    shady::Device* device = shd_rn_get_an_device(runner);
     assert(device);
 
-    // auto x = shd_rt_initialize(nullptr);
+    // auto x = shd_rn_initialize(nullptr);
 
     size_t size;
     char* src;
@@ -73,7 +73,7 @@ int main() {
 
     shady::Module* m;
     shd_driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
-    shady::Program* program = shd_rt_new_program_from_module(runtime, &compiler_config, m);
+    shady::Program* program = shd_rn_new_program_from_module(runner, &compiler_config, m);
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
     uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
@@ -83,9 +83,9 @@ int main() {
         }
     }
 
-    shady::Buffer* gpu_fb = shd_rt_allocate_buffer_device(device, fb_size);
-    uint64_t fb_gpu_addr = shd_rt_get_buffer_device_pointer(gpu_fb);
-    shd_rt_copy_to_buffer(gpu_fb, 0, cpu_fb, fb_size);
+    shady::Buffer* gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
+    uint64_t fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
+    shd_rn_copy_to_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
     std::vector<Sphere> cpu_spheres;
     for (size_t i = 0; i < 256; i++) {
@@ -94,9 +94,9 @@ int main() {
         cpu_spheres.emplace_back(s);
     }
 
-    shady::Buffer* gpu_spheres = shd_rt_allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
-    uint64_t spheres_gpu_addr = shd_rt_get_buffer_device_pointer(gpu_spheres);
-    shd_rt_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
+    shady::Buffer* gpu_spheres = shd_rn_allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
+    uint64_t spheres_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_spheres);
+    shd_rn_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
     glfwSwapInterval(1);
     do {
@@ -116,9 +116,9 @@ int main() {
         //printf("%f %f %d\n", camera.position.x, camera.rotation.pitch, camera_input.keys.forward);
         printf("%f %f %f\n", camera.position.x, camera.position.y, camera.position.z);
 
-        shd_rt_wait_completion(shd_rt_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+        shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
 
-        shd_rt_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+        shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
         blitImage(window, gfx_ctx, cpu_fb);
         glfwSwapBuffers(gfx_get_glfw_handle(window));
