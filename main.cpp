@@ -89,7 +89,7 @@ int main() {
 
     std::string files = xstr(RENDERER_LL_FILES);
     shady::Module* mod = nullptr;
-    for (auto& file : split(files, ";")) {
+    for (auto& file : split(files, ":")) {
         size_t size;
         char* src;
         bool ok = read_file(file.c_str(), &size, &src);

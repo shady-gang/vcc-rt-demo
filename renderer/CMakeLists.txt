@@ -16,8 +16,10 @@ function(add_renderer_source)
 endfunction()
 
 add_renderer_source(NAME renderer EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize  INCLUDE ${CUNK_INCLUDE})
+add_renderer_source(NAME matrix EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize  INCLUDE ${CUNK_INCLUDE})
 
-message("LLVM files to load at runtime: ${RENDERER_LL_FILES}")
+list(JOIN RENDERER_LL_FILES ":" RENDERER_LL_FILES_SEMI)
+message("LLVM files to load at runtime: ${RENDERER_LL_FILES_SEMI}")
 
 target_link_libraries(vcc_rt_demo PRIVATE renderer)
-target_compile_definitions(vcc_rt_demo PRIVATE "RENDERER_LL_FILES=${RENDERER_LL_FILES}")
+target_compile_definitions(vcc_rt_demo PRIVATE "RENDERER_LL_FILES=${RENDERER_LL_FILES_SEMI}")
