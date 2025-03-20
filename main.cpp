@@ -46,6 +46,12 @@ CameraFreelookState camera_state = {
 };
 CameraInput camera_input;
 
+static auto time() -> uint64_t {
+    timespec t = { 0 };
+    timespec_get(&t, TIME_UTC);
+    return t.tv_sec * 1000000000 + t.tv_nsec;
+}
+
 int main() {
     GfxCtx* gfx_ctx;
     int WIDTH = 800, HEIGHT = 600;
@@ -89,6 +95,10 @@ int main() {
     shady::Buffer* gpu_spheres = shd_rn_allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
     uint64_t spheres_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_spheres);
     shd_rn_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
+
+    auto then = time();
+    int frames = 0;
+    uint64_t total_time = 0;
 
     glfwSwapInterval(1);
     do {
