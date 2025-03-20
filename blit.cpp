@@ -12,7 +12,6 @@ float geometryData[] = {
         -1.0,  3.0,
 };
 
-std::optional<GfxTexture*> tex;
 std::optional<GfxShader*> shader;
 std::optional<GfxBuffer*> buffer;
 
@@ -36,13 +35,9 @@ static std::string test_fs = "#version 110\n"
                              "    outputColor = texture2D(the_texture, texCoord * 0.5 + vec2(0.5));\n"
                              "}";
 
-void blitImage(Window* window, GfxCtx* ctx, uint32_t* image) {
-    size_t width, height;
-    gfx_get_window_size(window, &width, &height);
-    if (!tex) {
-        GfxTexFormat f = { .base = GFX_TCF_UNORM8, .num_components = 4 };
-        tex = gfx_create_texture(ctx, width, height, 0, f);
-    }
+void blitImage(Window* window, GfxCtx* ctx, size_t width, size_t height, uint32_t* image) {
+    GfxTexFormat f = { .base = GFX_TCF_UNORM8, .num_components = 4 };
+    auto tex = gfx_create_texture(ctx, width, height, 0, f);
     if (!shader) {
         shader = gfx_create_shader(ctx, test_vs.c_str(), test_fs.c_str());
     }
@@ -59,8 +54,9 @@ void blitImage(Window* window, GfxCtx* ctx, uint32_t* image) {
     gfx_cmd_set_draw_state(ctx, state);
     gfx_cmd_use_shader(ctx, *shader);
 
-    gfx_upload_texture(*tex, image);
-    gfx_cmd_set_shader_extern(ctx, "the_texture", *tex);
+    gfx_upload_texture(tex, image);
+    gfx_cmd_set_shader_extern(ctx, "the_texture", tex);
     gfx_cmd_set_vertex_input(ctx, "vertexIn", *buffer, 2, sizeof(float) * 2, 0);
     gfx_cmd_draw_arrays(ctx, 0, 3);
+    gfx_destroy_texture(tex);
 }

@@ -22,9 +22,6 @@ bool read_file(const char* filename, size_t* size, char** output);
 GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
-
-int WIDTH = 800, HEIGHT = 600;
-
 using vec3 = std::array<float, 3>;
 
 struct Sphere {
@@ -40,7 +37,7 @@ float rng() {
     return n;
 }
 
-void blitImage(Window* window, GfxCtx* ctx, uint32_t* image);
+void blitImage(Window* window, GfxCtx* ctx, size_t, size_t, uint32_t* image);
 
 Camera camera;
 CameraFreelookState camera_state = {
@@ -51,6 +48,7 @@ CameraInput camera_input;
 
 int main() {
     GfxCtx* gfx_ctx;
+    int WIDTH = 800, HEIGHT = 600;
     Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
     if (!window)
         return 0;
@@ -77,15 +75,9 @@ int main() {
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
     uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
-    for (size_t x = 0; x < WIDTH; x++) {
-        for (size_t y = 0; y < HEIGHT; y++) {
-            cpu_fb[(x * HEIGHT + y)] = 0;
-        }
-    }
 
     shady::Buffer* gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
     uint64_t fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
-    shd_rn_copy_to_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
     std::vector<Sphere> cpu_spheres;
     for (size_t i = 0; i < 256; i++) {
@@ -100,6 +92,19 @@ int main() {
 
     glfwSwapInterval(1);
     do {
+        int nwidth, nheight;
+        glfwGetWindowSize(gfx_get_glfw_handle(window), &nwidth, &nheight);
+        if (nwidth != WIDTH || nheight != HEIGHT && nwidth * nheight > 0) {
+            WIDTH = nwidth;
+            HEIGHT = nheight;
+            fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
+            cpu_fb = static_cast<uint32_t*>(realloc(cpu_fb, fb_size));
+            // reallocate fb
+            shd_rn_destroy_buffer(gpu_fb);
+            gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
+            fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
+        }
+
         std::vector<void*> args;
         args.push_back(&camera);
         args.push_back(&WIDTH);
@@ -108,19 +113,33 @@ int main() {
         int nspheres = cpu_spheres.size();
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
-        shady::ExtraKernelOptions launch_options {};
 
         gfx_camera_update(window, &camera_input);
         camera_move_freelook(&camera, &camera_input, &camera_state);
 
-        //printf("%f %f %d\n", camera.position.x, camera.rotation.pitch, camera_input.keys.forward);
-        printf("%f %f %f\n", camera.position.x, camera.position.y, camera.position.z);
-
+        uint64_t profiled_gpu_time = 0;
+        shady::ExtraKernelOptions launch_options = {
+            .profiled_gpu_time = &profiled_gpu_time,
+        };
         shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+
+        frames++;
+        total_time += profiled_gpu_time;
+        auto now = time();
+        auto delta = now - then;
+        if (delta > 1000000000) {
+            assert(frames > 0);
+            auto avg_time = total_time / frames;
+            glfwSetWindowTitle(gfx_get_glfw_handle(window), (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames) + "frames.").c_str());
+            frames = 0;
+            total_time = 0;
+            then = now;
+        }
 
         shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
-        blitImage(window, gfx_ctx, cpu_fb);
+        blitImage(window, gfx_ctx, WIDTH, HEIGHT, cpu_fb);
+        glfwSwapInterval(0);
         glfwSwapBuffers(gfx_get_glfw_handle(window));
         glfwPollEvents();
     } while(!glfwWindowShouldClose(gfx_get_glfw_handle(window)));
