@@ -11,6 +11,7 @@ namespace shady {
 
 #include "shady/runner.h"
 #include "shady/driver.h"
+#include "shady/ir/module.h"
 
 }
 
@@ -52,6 +53,24 @@ static auto time() -> uint64_t {
     return t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
+#define xstr(s) str(s)
+#define str(s) #s
+
+std::vector<std::string> split(const std::string& str, const std::string& delim) {
+    std::vector<std::string> tokens;
+    size_t prev = 0, pos = 0;
+    do
+    {
+        pos = str.find(delim, prev);
+        if (pos == std::string::npos) pos = str.length();
+        std::string token = str.substr(prev, pos-prev);
+        if (!token.empty()) tokens.push_back(token);
+        prev = pos + delim.length();
+    }
+    while (pos < str.length() && prev < str.length());
+    return tokens;
+}
+
 int main() {
     GfxCtx* gfx_ctx;
     int WIDTH = 800, HEIGHT = 600;
@@ -68,16 +87,24 @@ int main() {
     shady::Device* device = shd_rn_get_an_device(runner);
     assert(device);
 
-    // auto x = shd_rn_initialize(nullptr);
+    std::string files = xstr(RENDERER_LL_FILES);
+    shady::Module* mod = nullptr;
+    for (auto& file : split(files, ";")) {
+        size_t size;
+        char* src;
+        bool ok = read_file(file.c_str(), &size, &src);
+        assert(ok);
 
-    size_t size;
-    char* src;
-    bool ok = read_file("main_gpu.ll", &size, &src);
-    assert(ok);
-
-    shady::Module* m;
-    shd_driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
-    shady::Program* program = shd_rn_new_program_from_module(runner, &compiler_config, m);
+        shady::Module* m;
+        shd_driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
+        if (mod == nullptr)
+            mod = m;
+        else {
+            shady::shd_module_link(mod, m);
+            shady::shd_destroy_module(m);
+        }
+    }
+    shady::Program* program = shd_rn_new_program_from_module(runner, &compiler_config, mod);
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
     uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
