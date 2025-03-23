@@ -32,6 +32,10 @@ struct Sphere {
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
+struct BBox {
+    vec3 min, max;
+};
+
 float rng() {
     float n = (rand() / 65536.0f);
     n = n - floorf(n);
@@ -123,6 +127,23 @@ int main() {
     uint64_t spheres_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_spheres);
     shd_rn_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
+    std::vector<BBox> cpu_boxes;
+    for (size_t i = 0; i < 256; i++) {
+        float spread = 200;
+        vec3 min = {rng() * spread - spread / 2, rng() * spread - spread / 2, rng() * spread - spread / 2};
+        BBox b;
+        b.min = min;
+        min[0] += 1;
+        min[1] += 1;
+        min[2] += 1;
+        b.max = min;
+        cpu_boxes.emplace_back(b);
+    }
+
+    shady::Buffer* gpu_boxes = shd_rn_allocate_buffer_device(device, cpu_boxes.size() * sizeof(BBox));
+    uint64_t boxes_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_boxes);
+    shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
+
     auto then = time();
     int frames = 0;
     uint64_t total_time = 0;
@@ -150,6 +171,9 @@ int main() {
         int nspheres = cpu_spheres.size();
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
+        int nboxes = cpu_boxes.size();
+        args.push_back(&nboxes);
+        args.push_back(&boxes_gpu_addr);
 
         gfx_camera_update(window, &camera_input);
         camera_move_freelook(&camera, &camera_input, &camera_state);

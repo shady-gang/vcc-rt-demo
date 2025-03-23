@@ -47,6 +47,39 @@ Hit intersect(Ray r, Sphere s) {
     return (Hit) { -1.0f };
 }
 
+static float fma(float, float, float) __asm__("shady::prim_op::fma");
+static float min(float, float) __asm__("shady::prim_op::min");
+static float max(float, float) __asm__("shady::prim_op::max");
+
+Hit intersect(Ray r, BBox bbox, vcc::vec3 ray_inv_dir) {
+    float txmin = fma(bbox.min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
+    float txmax = fma(bbox.max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
+    float tymin = fma(bbox.min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
+    float tymax = fma(bbox.max.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
+    float tzmin = fma(bbox.min.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
+    float tzmax = fma(bbox.max.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
+
+    auto t0x = min(txmin, txmax);
+    auto t1x = max(txmin, txmax);
+    auto t0y = min(tymin, tymax);
+    auto t1y = max(tymin, tymax);
+    auto t0z = min(tzmin, tzmax);
+    auto t1z = max(tzmin, tzmax);
+
+    //auto t0 = max(max(t0x, t0y), max(r.tmin, t0z));
+    //auto t1 = min(min(t1x, t1y), min(r.tmax, t1z));
+    auto t0 = max(max(t0x, t0y), t0z);
+    auto t1 = min(min(t1x, t1y), t1z);
+
+    if (t0 < t1) {
+        vec3 p = r.origin + r.dir * t0;
+        vec3 n = normalize(p - bbox.min);
+        return (Hit) { t0, p, n };
+    }
+
+    return (Hit) { -1.0f };
+}
+
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
 int32_t pack_color(vec3 color) {
@@ -60,7 +93,7 @@ vec3 vec3f_to_vec3(Vec3f v) {
 }
 
 compute_shader local_size(16, 16, 1)
-void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres) {
+void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -78,10 +111,18 @@ void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere*
     //Ray r = { origin, normalize(vec3f_to_vec3(forward)) };
     buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
+    vcc::vec3 ray_inv_dir = vcc::vec3(1.0f) / r.dir;
+
     Hit nearest_hit = { -1 };
     for (int i = 0; i < nspheres; i++) {
         Sphere s = ((Sphere*)spheres)[i];
         Hit hit = intersect(r, s);
+        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+            nearest_hit = hit;
+    }
+    for (int i = 0; i < nboxes; i++) {
+        BBox s = ((BBox*)boxes)[i];
+        Hit hit = intersect(r, s, ray_inv_dir);
         if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
     }
