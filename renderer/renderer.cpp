@@ -113,6 +113,7 @@ vec3 vec3f_to_vec3(Vec3f v) {
     return vec3(v.x, v.y, v.z);
 }
 
+[[gnu::flatten]]
 compute_shader local_size(16, 16, 1)
 void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
     int x = gl_GlobalInvocationID.x;
