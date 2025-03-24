@@ -51,6 +51,11 @@ static float fma(float, float, float) __asm__("shady::prim_op::fma");
 static float min(float, float) __asm__("shady::prim_op::min");
 static float max(float, float) __asm__("shady::prim_op::max");
 
+static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
+
+// static float min(float a, float b) { if (a < b) return a; return b; }
+// static float max(float a, float b) { if (a > b) return a; return b; }
+
 Hit intersect(Ray r, BBox bbox, vcc::vec3 ray_inv_dir) {
     float txmin = fma(bbox.min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float txmax = fma(bbox.max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
@@ -68,12 +73,28 @@ Hit intersect(Ray r, BBox bbox, vcc::vec3 ray_inv_dir) {
 
     //auto t0 = max(max(t0x, t0y), max(r.tmin, t0z));
     //auto t1 = min(min(t1x, t1y), min(r.tmax, t1z));
-    auto t0 = max(max(t0x, t0y), t0z);
+
+    enum {
+        X, Y, Z
+    } axis = X;
+    float max_t0xy = t0x;
+    if (t0y > t0x) {
+        axis = Y;
+        max_t0xy = t0y;
+    }
+    auto t0 = max_t0xy;
+    if (t0z > max_t0xy) {
+        axis = Z;
+        t0 = t0z;
+    }
+
+    //auto t0 = max(max(t0x, t0y), t0z);
     auto t1 = min(min(t1x, t1y), t1z);
 
     if (t0 < t1) {
         vec3 p = r.origin + r.dir * t0;
-        vec3 n = normalize(p - bbox.min);
+        vec3 n(0.0f);
+        n.arr[axis] = -sign(r.dir.arr[axis]);
         return (Hit) { t0, p, n };
     }
 
