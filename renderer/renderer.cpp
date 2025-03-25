@@ -5,29 +5,7 @@ using namespace nasl;
 #include <stdint.h>
 
 #include "camera.h"
-
-struct Ray {
-    vec3 origin;
-    vec3 dir;
-};
-
-struct Hit {
-    float t;
-    vec3 p, n;
-};
-
-struct BBox {
-    vec3 min, max;
-};
-
-struct Sphere {
-    vec3 center;
-    float radius;
-};
-
-float dot(vec3 a, vec3 b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
+#include "primitives.h"
 
 Hit intersect(Ray r, Sphere s) {
     vec3 rs = r.origin - s.center;
@@ -47,29 +25,23 @@ Hit intersect(Ray r, Sphere s) {
     return (Hit) { -1.0f };
 }
 
-static float fma(float, float, float) __asm__("shady::prim_op::fma");
-static float min(float, float) __asm__("shady::prim_op::min");
-static float max(float, float) __asm__("shady::prim_op::max");
-
-static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
-
 // static float min(float a, float b) { if (a < b) return a; return b; }
 // static float max(float a, float b) { if (a > b) return a; return b; }
 
 Hit intersect(Ray r, BBox bbox, vec3 ray_inv_dir) {
-    float txmin = fma(bbox.min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
-    float txmax = fma(bbox.max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
-    float tymin = fma(bbox.min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
-    float tymax = fma(bbox.max.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
-    float tzmin = fma(bbox.min.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
-    float tzmax = fma(bbox.max.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
+    float txmin = fmaf(bbox.min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
+    float txmax = fmaf(bbox.max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
+    float tymin = fmaf(bbox.min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
+    float tymax = fmaf(bbox.max.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
+    float tzmin = fmaf(bbox.min.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
+    float tzmax = fmaf(bbox.max.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
 
-    auto t0x = min(txmin, txmax);
-    auto t1x = max(txmin, txmax);
-    auto t0y = min(tymin, tymax);
-    auto t1y = max(tymin, tymax);
-    auto t0z = min(tzmin, tzmax);
-    auto t1z = max(tzmin, tzmax);
+    auto t0x = fminf(txmin, txmax);
+    auto t1x = fmaxf(txmin, txmax);
+    auto t0y = fminf(tymin, tymax);
+    auto t1y = fmaxf(tymin, tymax);
+    auto t0z = fminf(tzmin, tzmax);
+    auto t1z = fmaxf(tzmin, tzmax);
 
     //auto t0 = max(max(t0x, t0y), max(r.tmin, t0z));
     //auto t1 = min(min(t1x, t1y), min(r.tmax, t1z));
@@ -88,8 +60,8 @@ Hit intersect(Ray r, BBox bbox, vec3 ray_inv_dir) {
         t0 = t0z;
     }
 
-    //auto t0 = max(max(t0x, t0y), t0z);
-    auto t1 = min(min(t1x, t1y), t1z);
+    //auto t0 = fmaxf(fmaxf(t0x, t0y), t0z);
+    auto t1 = fminf(fminf(t1x, t1y), t1z);
 
     if (t0 < t1) {
         vec3 p = r.origin + r.dir * t0;

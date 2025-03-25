@@ -26,16 +26,7 @@ GLFWwindow* gfx_get_glfw_handle(Window*);
 
 #include "renderer/camera.h"
 
-struct Sphere {
-    vec3 center;
-    float radius;
-};
-
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
-
-struct BBox {
-    vec3 min, max;
-};
 
 float rng() {
     float n = (rand() / 65536.0f);
