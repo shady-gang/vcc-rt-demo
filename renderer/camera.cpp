@@ -1,23 +1,16 @@
-#include "cunk/camera.h"
-#include "nasl.h"
+#include "camera.h"
 
-#include <shady.h>
-
-using namespace vcc;
 using namespace nasl;
 
-static float sinf(float) __asm__("shady::prim_op::sin");
-static float cosf(float) __asm__("shady::prim_op::cos");
-
-static Mat4f camera_rotation_matrix(const Camera* camera) {
-    Mat4f matrix = identity_mat4f;
-    matrix = mul_mat4f(rotate_axis_mat4f(1, camera->rotation.yaw), matrix);
-    matrix = mul_mat4f(rotate_axis_mat4f(0, camera->rotation.pitch), matrix);
+static mat4 camera_rotation_matrix(const Camera* camera) {
+    mat4 matrix = identity_mat4;
+    matrix = mul_mat4(rotate_axis_mat4(1, camera->rotation.yaw), matrix);
+    matrix = mul_mat4(rotate_axis_mat4(0, camera->rotation.pitch), matrix);
     return matrix;
 }
 
-Mat4f rotate_axis_mat4f(unsigned int axis, float f) {
-    Mat4f m = { 0 };
+mat4 rotate_axis_mat4f(unsigned int axis, float f) {
+    mat4 m = { 0 };
     m.m33 = 1;
 
     unsigned int t = (axis + 2) % 3;
@@ -34,10 +27,17 @@ Mat4f rotate_axis_mat4f(unsigned int axis, float f) {
     return m;
 }
 
-Vec3f camera_get_forward_vec(const Camera* cam, vec3 forward) {
-    Vec4f initial_forward = { .x = forward.x, .y = forward.y, .z = forward.z, .w = 1 };
+vec3 camera_get_forward_vec(const Camera* cam, vec3 forward) {
+    vec4 initial_forward(forward, 1);
     // we invert the rotation matrix and use the front vector from the camera space to get the one in world space
-    Mat4f matrix = invert_mat4(camera_rotation_matrix(cam));
-    Vec4f result = mul_mat4f_vec4f(matrix, initial_forward);
-    return vec3f_scale(result.xyz, 1.0f / result.w);
+    mat4 matrix = invert_mat4(camera_rotation_matrix(cam));
+    vec4 result = mul_mat4_vec4f(matrix, initial_forward);
+    return vec3_scale(result.xyz, 1.0f / result.w);
+}
+
+vec3 camera_get_left_vec(const Camera* cam) {
+    vec4 initial_forward(-1, 0, 0, 1);
+    mat4 matrix = invert_mat4(camera_rotation_matrix(cam));
+    vec4 result = mul_mat4_vec4f(matrix, initial_forward);
+    return vec3_scale(result.xyz, 1.0f / result.w);
 }

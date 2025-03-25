@@ -18,12 +18,13 @@ namespace shady {
 bool read_file(const char* filename, size_t* size, char** output);
 
 #include "cunk/graphics.h"
-#include "cunk/camera.h"
 #include "GLFW/glfw3.h"
 GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
-using vec3 = std::array<float, 3>;
+#include "renderer/primitives.h"
+
+#include "renderer/camera.h"
 
 struct Sphere {
     vec3 center;
@@ -74,6 +75,8 @@ std::vector<std::string> split(const std::string& str, const std::string& delim)
     while (pos < str.length() && prev < str.length());
     return tokens;
 }
+
+void camera_update(GLFWwindow*, CameraInput* input);
 
 int main() {
     GfxCtx* gfx_ctx;
@@ -172,10 +175,11 @@ int main() {
         args.push_back(&nspheres);
         args.push_back(&spheres_gpu_addr);
         int nboxes = cpu_boxes.size();
+        //nboxes = 0;
         args.push_back(&nboxes);
         args.push_back(&boxes_gpu_addr);
 
-        gfx_camera_update(window, &camera_input);
+        camera_update(gfx_get_glfw_handle(window), &camera_input);
         camera_move_freelook(&camera, &camera_input, &camera_state);
 
         uint64_t profiled_gpu_time = 0;

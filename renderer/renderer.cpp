@@ -4,9 +4,7 @@ using namespace vcc;
 using namespace nasl;
 #include <stdint.h>
 
-#include "cunk/camera.h"
-
-Vec3f camera_get_forward_vec(const Camera* cam, vec3 forward);
+#include "camera.h"
 
 struct Ray {
     vec3 origin;
@@ -111,10 +109,6 @@ int32_t pack_color(vec3 color) {
 
 extern "C" {
 
-vec3 vec3f_to_vec3(Vec3f v) {
-    return vec3(v.x, v.y, v.z);
-}
-
 [[gnu::flatten]]
 compute_shader local_size(16, 16, 1)
 void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
@@ -125,14 +119,14 @@ void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere*
 
     float dx = (x / (float) width) * 2.0f - 1;
     float dy = (y / (float) height) * 2.0f - 1;
-    vec3 origin = vec3f_to_vec3(cam.position);
+    vec3 origin = cam.position;
     //Ray r = { origin, normalize(vec3(dx, dy, -1.0f)) };
-    Ray r = { origin, normalize(vec3f_to_vec3(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f)))) };
+    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))) };
     /*forward.x = 1.0f;
     forward.y = 0.0f;
     forward.z = 0.0f;
     Ray r = { origin, normalize(vec3(0.0f, dx, dy) + vec3f_to_vec3(forward)) };*/
-    //Ray r = { origin, normalize(vec3f_to_vec3(forward)) };
+    //Ray r = { origin, normalize(forward) };
     buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
     vec3 ray_inv_dir = vec3(1.0f) / r.dir;
