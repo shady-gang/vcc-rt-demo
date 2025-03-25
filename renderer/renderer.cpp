@@ -1,5 +1,7 @@
 #include <shady.h>
 using namespace vcc;
+#include "nasl.h"
+using namespace nasl;
 #include <stdint.h>
 
 #include "cunk/camera.h"
@@ -56,7 +58,7 @@ static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
 // static float min(float a, float b) { if (a < b) return a; return b; }
 // static float max(float a, float b) { if (a > b) return a; return b; }
 
-Hit intersect(Ray r, BBox bbox, vcc::vec3 ray_inv_dir) {
+Hit intersect(Ray r, BBox bbox, vec3 ray_inv_dir) {
     float txmin = fma(bbox.min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float txmax = fma(bbox.max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float tymin = fma(bbox.min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
@@ -133,7 +135,7 @@ void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere*
     //Ray r = { origin, normalize(vec3f_to_vec3(forward)) };
     buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
-    vcc::vec3 ray_inv_dir = vcc::vec3(1.0f) / r.dir;
+    vec3 ray_inv_dir = vec3(1.0f) / r.dir;
 
     Hit nearest_hit = { -1 };
     for (int i = 0; i < nspheres; i++) {

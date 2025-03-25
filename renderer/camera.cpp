@@ -1,8 +1,10 @@
 #include "cunk/camera.h"
+#include "nasl.h"
 
 #include <shady.h>
 
 using namespace vcc;
+using namespace nasl;
 
 static float sinf(float) __asm__("shady::prim_op::sin");
 static float cosf(float) __asm__("shady::prim_op::cos");
