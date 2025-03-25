@@ -43,13 +43,13 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nsphere
 
     Hit nearest_hit = { -1 };
     for (int i = 0; i < nspheres; i++) {
-        Sphere s = ((Sphere*)spheres)[i];
+        Sphere& s = ((Sphere*)spheres)[i];
         Hit hit = s.intersect(r);
         if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
     }
     for (int i = 0; i < nboxes; i++) {
-        BBox b = ((BBox*)boxes)[i];
+        BBox& b = ((BBox*)boxes)[i];
         Hit hit = b.intersect(r, ray_inv_dir);
         if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
