@@ -95,6 +95,7 @@ int main() {
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
+    compiler_config.dynamic_scheduling = false;
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = shd_rn_get_an_device(runner);
     assert(device);
