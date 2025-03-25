@@ -13,9 +13,13 @@ struct Hit {
 struct Sphere {
     vec3 center;
     float radius;
+
+    Hit intersect(Ray r);
 };
 
 struct BBox {
     vec3 min, max;
+
+    Hit intersect(Ray r, vec3 ray_inv_dir);
 };
 

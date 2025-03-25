@@ -1,6 +1,9 @@
 #ifndef RA_MATH
 #define RA_MATH
 
+// static float min(float a, float b) { if (a < b) return a; return b; }
+// static float max(float a, float b) { if (a > b) return a; return b; }
+
 #ifdef __SHADY__
 #include "shady.h"
 static float M_PI = 3.14159f;

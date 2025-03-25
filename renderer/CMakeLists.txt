@@ -20,6 +20,7 @@ endfunction()
 
 add_renderer_source(NAME renderer EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize  INCLUDE ${NASL_INCLUDE})
 add_renderer_source(NAME camera EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize  INCLUDE ${NASL_INCLUDE})
+add_renderer_source(NAME primitives EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize  INCLUDE ${NASL_INCLUDE})
 
 list(JOIN RENDERER_LL_FILES ":" RENDERER_LL_FILES_SEMI)
 message("LLVM files to load at runtime: ${RENDERER_LL_FILES_SEMI}")
