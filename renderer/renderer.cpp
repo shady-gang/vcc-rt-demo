@@ -1,7 +1,8 @@
-#include <shady.h>
-using namespace vcc;
-#include "nasl.h"
+// #include <shady.h>
+// using namespace vcc;
+#include "ra_math.h"
 using namespace nasl;
+
 #include <stdint.h>
 
 #include "camera.h"
@@ -47,7 +48,7 @@ Hit intersect(Ray r, BBox bbox, vec3 ray_inv_dir) {
     //auto t1 = min(min(t1x, t1y), min(r.tmax, t1z));
 
     enum {
-        X, Y, Z
+        X = 0, Y, Z
     } axis = X;
     float max_t0xy = t0x;
     if (t0y > t0x) {
@@ -81,9 +82,18 @@ int32_t pack_color(vec3 color) {
 
 extern "C" {
 
-[[gnu::flatten]]
+#ifdef __SHADY__
+#include "shady.h"
+using namespace vcc;
+#else
+extern vec2 gl_GlobalInvocationID;
+#endif
+
+#ifdef __SHADY__
 compute_shader local_size(16, 16, 1)
-void main(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
+#endif
+//[[gnu::flatten]]
+void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)

@@ -10,6 +10,7 @@ static float tanf(float) __asm__("shady::pure_op::GLSL.std.450::15::Invocation")
 static float fmaf(float, float, float) __asm__("shady::pure_op::GLSL.std.450::50::Invocation");
 static float fminf(float, float) __asm__("shady::pure_op::GLSL.std.450::37::Invocation");
 static float fmaxf(float, float) __asm__("shady::pure_op::GLSL.std.450::40::Invocation");
+static float sqrtf(float) __asm__("shady::pure_op::GLSL.std.450::31::Invocation");
 static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
 
 typedef long int size_t;

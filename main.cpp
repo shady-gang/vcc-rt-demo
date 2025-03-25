@@ -69,12 +69,26 @@ std::vector<std::string> split(const std::string& str, const std::string& delim)
 
 void camera_update(GLFWwindow*, CameraInput* input);
 
+
+extern "C" {
+vec2 gl_GlobalInvocationID;
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes);
+}
+
+bool gpu = true;
+
 int main() {
     GfxCtx* gfx_ctx;
     int WIDTH = 800, HEIGHT = 600;
     Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
     if (!window)
         return 0;
+
+    glfwSetKeyCallback(gfx_get_glfw_handle(window), [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+            gpu = !gpu;
+        }
+    });
 
     shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = true;
@@ -138,7 +152,7 @@ int main() {
     uint64_t boxes_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_boxes);
     shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
 
-    auto then = time();
+    auto epoch = time();
     int frames = 0;
     uint64_t total_time = 0;
 
@@ -157,42 +171,55 @@ int main() {
             fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
         }
 
-        std::vector<void*> args;
-        args.push_back(&camera);
-        args.push_back(&WIDTH);
-        args.push_back(&HEIGHT);
-        args.push_back(&fb_gpu_addr);
-        int nspheres = cpu_spheres.size();
-        args.push_back(&nspheres);
-        args.push_back(&spheres_gpu_addr);
-        int nboxes = cpu_boxes.size();
-        //nboxes = 0;
-        args.push_back(&nboxes);
-        args.push_back(&boxes_gpu_addr);
-
         camera_update(gfx_get_glfw_handle(window), &camera_input);
         camera_move_freelook(&camera, &camera_input, &camera_state);
 
-        uint64_t profiled_gpu_time = 0;
-        shady::ExtraKernelOptions launch_options = {
-            .profiled_gpu_time = &profiled_gpu_time,
-        };
-        shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "main", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+        uint64_t render_time;
+        if (gpu) {
+            std::vector<void*> args;
+            args.push_back(&camera);
+            args.push_back(&WIDTH);
+            args.push_back(&HEIGHT);
+            args.push_back(&fb_gpu_addr);
+            int nspheres = cpu_spheres.size();
+            args.push_back(&nspheres);
+            args.push_back(&spheres_gpu_addr);
+            int nboxes = cpu_boxes.size();
+            //nboxes = 0;
+            args.push_back(&nboxes);
+            args.push_back(&boxes_gpu_addr);
+
+            shady::ExtraKernelOptions launch_options = {
+                .profiled_gpu_time = &render_time,
+            };
+            shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+            shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+        } else {
+            auto then = time();
+            #pragma omp parallel for
+            for (int x = 0; x < WIDTH; x++) {
+                for (int y = 0; y < HEIGHT; y++) {
+                    gl_GlobalInvocationID.x = x;
+                    gl_GlobalInvocationID.y = y;
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data());
+                }
+            }
+            auto now = time();
+            render_time = now - then;
+        }
 
         frames++;
-        total_time += profiled_gpu_time;
         auto now = time();
-        auto delta = now - then;
+        total_time += render_time;
+        auto delta = now - epoch;
         if (delta > 1000000000) {
             assert(frames > 0);
             auto avg_time = total_time / frames;
             glfwSetWindowTitle(gfx_get_glfw_handle(window), (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames) + "frames.").c_str());
             frames = 0;
             total_time = 0;
-            then = now;
+            epoch = now;
         }
-
-        shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
 
         blitImage(window, gfx_ctx, WIDTH, HEIGHT, cpu_fb);
         glfwSwapInterval(0);
