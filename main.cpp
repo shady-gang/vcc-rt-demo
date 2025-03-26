@@ -80,6 +80,7 @@ void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspher
 }
 
 bool gpu = true;
+bool use_bvh = true;
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -96,6 +97,8 @@ int main(int argc, char** argv) {
     glfwSetKeyCallback(gfx_get_glfw_handle(window), [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             gpu = !gpu;
+        }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
+            use_bvh = !use_bvh;
         }
     });
 
@@ -202,6 +205,8 @@ int main(int argc, char** argv) {
             args.push_back(&nboxes);
             args.push_back(&boxes_gpu_addr);
             int ntris = model.triangles_count;
+            if (use_bvh)
+                ntris = 0;
             args.push_back(&ntris);
             uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
             args.push_back(&ptr);

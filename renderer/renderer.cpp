@@ -43,29 +43,32 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nsphere
     vec3 ray_inv_dir = vec3(1.0f) / r.dir;
 
     Hit nearest_hit = { -1 };
-    for (int i = 0; i < nspheres; i++) {
-        Sphere& s = ((Sphere*)spheres)[i];
-        Hit hit = s.intersect(r);
-        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-            nearest_hit = hit;
-    }
-    for (int i = 0; i < nboxes; i++) {
-        BBox& b = ((BBox*)boxes)[i];
-        Hit hit = b.intersect(r, ray_inv_dir);
-        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-            nearest_hit = hit;
-    }
-    //for (int i = 0; i < ntris; i++) {
-    //    Triangle& b = (triangles)[i];
-    //    Hit hit = b.intersect(r);
-    //    if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-    //        nearest_hit = hit;
-    //}
+    // for (int i = 0; i < nspheres; i++) {
+    //     Sphere& s = ((Sphere*)spheres)[i];
+    //     Hit hit = s.intersect(r);
+    //     if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+    //         nearest_hit = hit;
+    // }
+    // for (int i = 0; i < nboxes; i++) {
+    //     BBox& b = ((BBox*)boxes)[i];
+    //     Hit hit = b.intersect(r, ray_inv_dir);
+    //     if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+    //         nearest_hit = hit;
+    // }
 
-    // BVH shizzle
-    Hit bvh_hit = bvh.intersect(r, ray_inv_dir);
-    if (bvh_hit.t > 0.0f && (bvh_hit.t < nearest_hit.t || nearest_hit.t == -1))
-        nearest_hit = bvh_hit;
+    if (ntris > 0) {
+        for (int i = 0; i < ntris; i++) {
+            Triangle& b = (triangles)[i];
+            Hit hit = b.intersect(r);
+            if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+                nearest_hit = hit;
+        }
+    } else {
+        // BVH shizzle
+        Hit bvh_hit = bvh.intersect(r, ray_inv_dir);
+        if (bvh_hit.t > 0.0f && (bvh_hit.t < nearest_hit.t || nearest_hit.t == -1))
+            nearest_hit = bvh_hit;
+    }
 
     if (nearest_hit.t > 0.0f)
         buf[(y * width + x)] = pack_color(nearest_hit.n);
