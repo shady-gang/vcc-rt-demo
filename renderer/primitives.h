@@ -24,6 +24,7 @@ struct BBox {
     vec3 min, max;
 
     Hit intersect(Ray r, vec3 ray_inv_dir);
+    bool contains(vec3 point);
 };
 
 struct Triangle {

@@ -7,6 +7,7 @@ using namespace nasl;
 
 #include "camera.h"
 #include "primitives.h"
+#include "bvh.h"
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
@@ -20,14 +21,14 @@ extern "C" {
 #include "shady.h"
 using namespace vcc;
 #else
-extern vec2 gl_GlobalInvocationID;
+thread_local extern vec2 gl_GlobalInvocationID;
 #endif
 
 #ifdef __SHADY__
 compute_shader local_size(16, 16, 1)
 #endif
 //[[gnu::flatten]]
-void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle* triangles) {
+void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle* triangles, BVH bvh) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -54,12 +55,17 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nsphere
         if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
     }
-    for (int i = 0; i < ntris; i++) {
-        Triangle& b = (triangles)[i];
-        Hit hit = b.intersect(r);
-        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-            nearest_hit = hit;
-    }
+    //for (int i = 0; i < ntris; i++) {
+    //    Triangle& b = (triangles)[i];
+    //    Hit hit = b.intersect(r);
+    //    if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+    //        nearest_hit = hit;
+    //}
+
+    // BVH shizzle
+    Hit bvh_hit = bvh.intersect(r, ray_inv_dir);
+    if (bvh_hit.t > 0.0f && (bvh_hit.t < nearest_hit.t || nearest_hit.t == -1))
+        nearest_hit = bvh_hit;
 
     if (nearest_hit.t > 0.0f)
         buf[(y * width + x)] = pack_color(nearest_hit.n);

@@ -63,6 +63,12 @@ Hit BBox::intersect(Ray r, vec3 ray_inv_dir) {
     return (Hit) { -1.0f };
 }
 
+bool BBox::contains(vec3 point) {
+    return point.x >= min.x && point.x <= max.x
+        && point.y >= min.y && point.y <= max.y
+        && point.z >= min.z && point.z <= max.z;
+}
+
 Hit Triangle::intersect(Ray ray) {
     const auto &v0       = this->v0;
     const auto &v1       = this->v1;

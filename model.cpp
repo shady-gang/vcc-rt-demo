@@ -40,10 +40,11 @@ Model::Model(const char* path, Device* device) {
                 .v2 = { v2.x, v2.y, v2.z },
             };
             tris.push_back(tri);
-            this->triangles_count += 1;
         }
     }
 
+    //tris.resize(256);
+    this->triangles_count = tris.size();
     printf("Loaded %d triangles\n", this->triangles_count);
 
     this->triangles_gpu = shd_rn_allocate_buffer_device(device, tris.size() * sizeof(Triangle));

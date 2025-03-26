@@ -26,6 +26,7 @@ GLFWwindow* gfx_get_glfw_handle(Window*);
 #include "renderer/camera.h"
 
 #include "model.h"
+#include "bvh_host.h"
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
@@ -39,7 +40,8 @@ void blitImage(Window* window, GfxCtx* ctx, size_t, size_t, uint32_t* image);
 
 Camera camera;
 CameraFreelookState camera_state = {
-    .fly_speed = 0.1f,
+    //.fly_speed = 0.1f,
+    .fly_speed = 10.0f,
     .mouse_sensitivity = 1.0,
 };
 CameraInput camera_input;
@@ -72,11 +74,12 @@ void camera_update(GLFWwindow*, CameraInput* input);
 
 
 extern "C" {
-vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle*);
+
+thread_local vec2 gl_GlobalInvocationID;
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle*, BVH bvh);
 }
 
-bool gpu = false;
+bool gpu = true;
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -132,7 +135,7 @@ int main(int argc, char** argv) {
     uint64_t fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
 
     std::vector<Sphere> cpu_spheres;
-    for (size_t i = 0; i < 256; i++) {
+    for (size_t i = 0; i < 1; i++) {
         float spread = 200;
         Sphere s = {{rng() * spread - spread / 2, rng() * spread - spread / 2, rng() * spread - spread / 2}, rng() * 5 + 2};
         cpu_spheres.emplace_back(s);
@@ -143,7 +146,7 @@ int main(int argc, char** argv) {
     shd_rn_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
 
     std::vector<BBox> cpu_boxes;
-    for (size_t i = 0; i < 256; i++) {
+    for (size_t i = 0; i < 1; i++) {
         float spread = 200;
         vec3 min = {rng() * spread - spread / 2, rng() * spread - spread / 2, rng() * spread - spread / 2};
         BBox b;
@@ -160,6 +163,7 @@ int main(int argc, char** argv) {
     shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
 
     Model model(argv[1], device);
+    BVHHost bvh(model, device);
 
     auto epoch = time();
     int frames = 0;
@@ -201,6 +205,8 @@ int main(int argc, char** argv) {
             args.push_back(&ntris);
             uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
             args.push_back(&ptr);
+            args.push_back(&bvh.gpu_bvh);
+            //BVH* gpu_bvh = bvh.gpu_bvh;
 
             shady::ExtraKernelOptions launch_options = {
                 .profiled_gpu_time = &render_time,
@@ -214,7 +220,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data(), model.triangles_count, model.triangles_host);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data(), model.triangles_count, model.triangles_host, bvh.host_bvh);
                 }
             }
             auto now = time();
