@@ -73,10 +73,10 @@ void camera_update(GLFWwindow*, CameraInput* input);
 
 extern "C" {
 vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes);
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle*);
 }
 
-bool gpu = true;
+bool gpu = false;
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
             args.push_back(&boxes_gpu_addr);
             int ntris = model.triangles_count;
             args.push_back(&ntris);
-            uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles);
+            uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
             args.push_back(&ptr);
 
             shady::ExtraKernelOptions launch_options = {
@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data());
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data(), model.triangles_count, model.triangles_host);
                 }
             }
             auto now = time();

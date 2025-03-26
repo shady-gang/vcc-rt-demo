@@ -20,7 +20,8 @@ struct Model {
     ~Model();
 
     int triangles_count = 0;
-    shady::Buffer* triangles;
+    Triangle* triangles_host;
+    shady::Buffer* triangles_gpu;
 };
 
 #endif
