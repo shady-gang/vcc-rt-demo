@@ -1,3 +1,6 @@
+#ifndef RA_PRIMITIVES
+#define RA_PRIMITIVES
+
 #include "ra_math.h"
 
 struct Ray {
@@ -23,3 +26,10 @@ struct BBox {
     Hit intersect(Ray r, vec3 ray_inv_dir);
 };
 
+struct Triangle {
+    vec3 v0, v1, v2;
+
+    Hit intersect(Ray r);
+};
+
+#endif

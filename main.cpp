@@ -23,8 +23,9 @@ GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
 #include "renderer/primitives.h"
-
 #include "renderer/camera.h"
+
+#include "model.h"
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
@@ -77,7 +78,12 @@ void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspher
 
 bool gpu = true;
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        printf("Usage: ./ra <model>\n");
+        exit(-1);
+    }
+
     GfxCtx* gfx_ctx;
     int WIDTH = 800, HEIGHT = 600;
     Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
@@ -153,6 +159,8 @@ int main() {
     uint64_t boxes_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_boxes);
     shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
 
+    Model model(argv[1], device);
+
     auto epoch = time();
     int frames = 0;
     uint64_t total_time = 0;
@@ -189,6 +197,10 @@ int main() {
             //nboxes = 0;
             args.push_back(&nboxes);
             args.push_back(&boxes_gpu_addr);
+            int ntris = model.triangles_count;
+            args.push_back(&ntris);
+            uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles);
+            args.push_back(&ptr);
 
             shady::ExtraKernelOptions launch_options = {
                 .profiled_gpu_time = &render_time,

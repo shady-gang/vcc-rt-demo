@@ -1,11 +1,13 @@
 #ifndef RA_MODEL_H
 #define RA_MODEL_H
 
+#include "renderer/primitives.h"
+
 #include <string>
 
 #include "nasl.h"
 
-namespace shd {
+namespace shady {
 extern "C" {
 
 #include "shady/runner.h"
@@ -13,16 +15,12 @@ extern "C" {
 }
 }
 
-struct Triangle {
-
-};
-
-class Model {
-    Model(std::string& path, shd::Device*);
+struct Model {
+    Model(const char* path, shady::Device*);
     ~Model();
 
-    int triangles_count;
-    shd::Buffer* triangles;
+    int triangles_count = 0;
+    shady::Buffer* triangles;
 };
 
 #endif

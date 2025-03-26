@@ -62,3 +62,60 @@ Hit BBox::intersect(Ray r, vec3 ray_inv_dir) {
 
     return (Hit) { -1.0f };
 }
+
+Hit Triangle::intersect(Ray ray) {
+    const auto &v0       = this->v0;
+    const auto &v1       = this->v1;
+    const auto &v2       = this->v2;
+
+    // why does 'auto' break it ?
+    const vec3 edge1 = v1 - v0;
+    const vec3 edge2 = v2 - v0;
+
+    const auto pvec = ray.dir.cross(edge2);
+    const auto det  = edge1.dot(pvec);
+    if (det > -1e-8f && det < 1e-8f)
+        return (Hit) { -1.0f };
+    const auto invDet = 1 / det;
+
+    const auto tvec = ray.origin - v0;
+    const float u   = tvec.dot(pvec) * invDet;
+    if (u < 0 || u > 1)
+        return (Hit) { -1.0f };
+
+    const auto qvec = tvec.cross(edge1);
+    const float v   = ray.dir.dot(qvec) * invDet;
+    if (v < 0 || u + v > 1)
+        return (Hit) { -1.0f };
+
+    const float t = edge2.dot(qvec) * invDet;
+    if (t < epsilon)
+        return (Hit) { -1.0f };
+
+    // const auto vInterpolated = Vertex::interpolate({ u, v }, v0, v1, v2);
+
+    //const auto deltaUV1 = v1.uv - v0.uv;
+    //const auto deltaUV2 = v2.uv - v0.uv;
+    //const float r =
+    //    deltaUV1.x() * deltaUV2.y() - deltaUV1.y() * deltaUV2.x();
+    //const auto tangent =
+    //    abs(r) < 1e-6 ? edge1
+    //                  : (edge1 * deltaUV2.y() - edge2 * deltaUV1.y()) / r;
+
+    Hit hit {
+        .t = t,
+        .p = interpolateBarycentric<vec3>({u, v}, v0, v1, v2),
+        .n = normalize(edge1.cross(edge2)),
+    };
+
+    return hit;
+
+    //its.t              = t;
+    //its.position       = vInterpolated.position;
+    //its.uv             = vInterpolated.uv;
+    //its.geometryNormal = edge1.cross(edge2).normalized();
+    //its.shadingNormal  = m_smoothNormals ? vInterpolated.normal.normalized()
+    //                                     : its.geometryNormal;
+    //its.tangent        = tangent;
+    //its.pdf            = 0;
+}

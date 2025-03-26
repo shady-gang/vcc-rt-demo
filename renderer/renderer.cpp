@@ -27,7 +27,7 @@ extern vec2 gl_GlobalInvocationID;
 compute_shader local_size(16, 16, 1)
 #endif
 //[[gnu::flatten]]
-void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes) {
+void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle* triangles) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -51,6 +51,12 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nsphere
     for (int i = 0; i < nboxes; i++) {
         BBox& b = ((BBox*)boxes)[i];
         Hit hit = b.intersect(r, ray_inv_dir);
+        if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
+            nearest_hit = hit;
+    }
+    for (int i = 0; i < ntris; i++) {
+        Triangle& b = (triangles)[i];
+        Hit hit = b.intersect(r);
         if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
             nearest_hit = hit;
     }

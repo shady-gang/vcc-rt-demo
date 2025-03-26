@@ -1,16 +1,17 @@
-
-
 //#include <cstdint>
 
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
 
-#include <assert.h>
+#include <cassert>
+#include <vector>
 
 #include "model.h"
 
-Model::Model(std::string& path, shd::Device* device) {
+using namespace shady;
+
+Model::Model(const char* path, Device* device) {
     Assimp::Importer importer;
 
     // And have it read the given file with some example postprocessing
@@ -24,23 +25,29 @@ Model::Model(std::string& path, shd::Device* device) {
                                               aiProcess_SortByPType);
 
     assert(scene);
-    size_t total_tri_count = 0;
-    size_t total_indices_count = 0;
+    std::vector<Triangle> tris;
     for (int i = 0; i < scene->mNumMeshes; i++) {
         auto mesh = scene->mMeshes[i];
-        total_tri_count += mesh->mNumVertices;
-        total_indices_count += mesh->mNumFaces * 3;
+        for (int j = 0; j < mesh->mNumFaces; j++) {
+            auto& face = mesh->mFaces[j];
+            assert(face.mNumIndices == 3);
+            auto v0 = mesh->mVertices[face.mIndices[0]];
+            auto v1 = mesh->mVertices[face.mIndices[1]];
+            auto v2 = mesh->mVertices[face.mIndices[2]];
+            Triangle tri {
+                .v0 = { v0.x, v0.y, v0.z },
+                .v1 = { v1.x, v1.y, v1.z },
+                .v2 = { v2.x, v2.y, v2.z },
+            };
+            tris.push_back(tri);
+            this->triangles_count += 1;
+        }
     }
-    this->triangles_count = total_tri_count;
-    size_t buffer_size = total_tri_count *= sizeof(Triangle);
 
-    this->triangles = shd::shd_rn_allocate_buffer_device(device, buffer_size);
-    for (int i = 0; i < scene->mNumMeshes; i++) {
-        auto mesh = scene->mMeshes[i];
-        total_tri_count += mesh->mNumVertices;
-    }
+    this->triangles = shd_rn_allocate_buffer_device(device, tris.size() * sizeof(Triangle));
+    shd_rn_copy_to_buffer(this->triangles, 0, tris.data(), tris.size() * sizeof(Triangle));
 }
 
 Model::~Model() {
-
+    shd_rn_destroy_buffer(triangles);
 }

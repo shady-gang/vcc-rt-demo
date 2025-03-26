@@ -30,8 +30,25 @@ static inline float sign(float f) {
 
 using namespace nasl;
 
-static float dot(vec3 a, vec3 b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
+static constexpr float epsilon = 1e-4f;
+
+/// @brief Barycentric interpolation ([0,0] returns a, [1,0] returns b, and
+/// [0,1] returns c).
+template <typename T>
+static T interpolateBarycentric(const vec2 &bary, const T &a, const T &b,
+                                const T &c) {
+    return a * (1 - bary.x - bary.y) + b * bary.x + c * bary.y;
 }
+
+/*static Vertex interpolate(const vec2 &bary, const Vertex &a,
+                          const Vertex &b, const Vertex &c) {
+    return {
+        .position = interpolateBarycentric(
+            bary, a.position, b.position, c.position),
+        .uv = interpolateBarycentric(bary, a.uv, b.uv, c.uv),
+        .normal =
+        interpolateBarycentric(bary, a.normal, b.normal, c.normal),
+    };
+}*/
 
 #endif
