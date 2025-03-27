@@ -28,7 +28,7 @@ thread_local extern vec2 gl_GlobalInvocationID;
 compute_shader local_size(16, 16, 1)
 #endif
 //[[gnu::flatten]]
-void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle* triangles, BVH bvh) {
+void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int ntris, Triangle* triangles, BVH bvh) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -37,37 +37,21 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int nsphere
     float dx = (x / (float) width) * 2.0f - 1;
     float dy = (y / (float) height) * 2.0f - 1;
     vec3 origin = cam.position;
-    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))) };
+    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))), 0, 99999 };
     buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
     vec3 ray_inv_dir = vec3(1.0f) / r.dir;
 
-    Hit nearest_hit = { -1 };
-    // for (int i = 0; i < nspheres; i++) {
-    //     Sphere& s = ((Sphere*)spheres)[i];
-    //     Hit hit = s.intersect(r);
-    //     if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-    //         nearest_hit = hit;
-    // }
-    // for (int i = 0; i < nboxes; i++) {
-    //     BBox& b = ((BBox*)boxes)[i];
-    //     Hit hit = b.intersect(r, ray_inv_dir);
-    //     if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-    //         nearest_hit = hit;
-    // }
+    Hit nearest_hit = { r.tmin };
 
     if (ntris > 0) {
         for (int i = 0; i < ntris; i++) {
             Triangle& b = (triangles)[i];
-            Hit hit = b.intersect(r);
-            if (hit.t > 0.0f && (hit.t < nearest_hit.t || nearest_hit.t == -1))
-                nearest_hit = hit;
+            b.intersect(r, nearest_hit);
         }
     } else {
         // BVH shizzle
-        Hit bvh_hit = bvh.intersect(r, ray_inv_dir);
-        if (bvh_hit.t > 0.0f && (bvh_hit.t < nearest_hit.t || nearest_hit.t == -1))
-            nearest_hit = bvh_hit;
+        bvh.intersect(r, ray_inv_dir, nearest_hit);
     }
 
     if (nearest_hit.t > 0.0f)

@@ -24,6 +24,14 @@ static inline Vec3 nasl2bvh(vec3 v) {
 
 using namespace shady;
 
+static int count_tris(BVH* bvh, int i) {
+    BVH::Node* n = &bvh->nodes[i];
+    if (n->is_leaf)
+        return n->leaf.count;
+    else
+        return count_tris(bvh, n->inner.children[0]) + count_tris(bvh, n->inner.children[1]);
+}
+
 BVHHost::BVHHost(Model& model, Device* device) {
     bvh::v2::ThreadPool thread_pool;
     bvh::v2::ParallelExecutor executor(thread_pool);
@@ -95,4 +103,7 @@ BVHHost::BVHHost(Model& model, Device* device) {
     gpu_bvh.nodes = reinterpret_cast<BVH::Node*>(shd_rn_get_buffer_device_pointer(gpu_nodes));
     gpu_bvh.indices = reinterpret_cast<int*>(shd_rn_get_buffer_device_pointer(gpu_indices));
     gpu_bvh.tris = reinterpret_cast<Triangle*>(shd_rn_get_buffer_device_pointer(model.triangles_gpu));
+
+    int c = count_tris(&host_bvh, host_bvh.root);
+    assert(c == model.triangles_count);
 }

@@ -18,9 +18,8 @@ Model::Model(const char* path, Device* device) {
     // Usually - if speed is not the most important aspect for you - you'll
     // probably to request more postprocessing than we do in this example.
     const aiScene* scene = importer.ReadFile( path,
-                                              aiProcess_CalcTangentSpace       |
+
                                               aiProcess_Triangulate            |
-                                              aiProcess_JoinIdenticalVertices  |
                                               aiProcess_PreTransformVertices |
                                               aiProcess_SortByPType);
 

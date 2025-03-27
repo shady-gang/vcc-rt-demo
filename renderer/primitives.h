@@ -6,6 +6,7 @@
 struct Ray {
     vec3 origin;
     vec3 dir;
+    float tmin = 0, tmax = 99999;
 };
 
 struct Hit {
@@ -17,20 +18,21 @@ struct Sphere {
     vec3 center;
     float radius;
 
-    Hit intersect(Ray r);
+    bool intersect(Ray r, Hit&);
 };
 
 struct BBox {
     vec3 min, max;
 
-    Hit intersect(Ray r, vec3 ray_inv_dir);
+    void intersect_range(Ray r, vec3 ray_inv_dir, float t[2]);
+    bool intersect(Ray r, vec3 ray_inv_dir, Hit&);
     bool contains(vec3 point);
 };
 
 struct Triangle {
     vec3 v0, v1, v2;
 
-    Hit intersect(Ray r);
+    bool intersect(Ray r, Hit&);
 };
 
 #endif

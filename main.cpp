@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <cstdint>
+#include <cstring>
 
 extern "C" {
 namespace shady {
@@ -76,14 +77,29 @@ void camera_update(GLFWwindow*, CameraInput* input);
 extern "C" {
 
 thread_local vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int nspheres, Sphere* spheres, int nboxes, BBox* boxes, int ntris, Triangle*, BVH bvh);
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh);
 }
 
 bool gpu = true;
 bool use_bvh = true;
 
+int max_frames = 0;
+
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    char* model_filename = nullptr;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--frames") == 0) {
+            max_frames = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(argv[i], "--no-bvh") == 0) {
+            use_bvh = false;
+        }
+        model_filename = argv[i];
+    }
+
+    if (!model_filename) {
         printf("Usage: ./ra <model>\n");
         exit(-1);
     }
@@ -165,13 +181,14 @@ int main(int argc, char** argv) {
     uint64_t boxes_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_boxes);
     shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
 
-    Model model(argv[1], device);
+    Model model(model_filename, device);
     BVHHost bvh(model, device);
 
     auto epoch = time();
-    int frames = 0;
+    int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
+    int frame = 0;
     glfwSwapInterval(1);
     do {
         int nwidth, nheight;
@@ -197,13 +214,6 @@ int main(int argc, char** argv) {
             args.push_back(&WIDTH);
             args.push_back(&HEIGHT);
             args.push_back(&fb_gpu_addr);
-            int nspheres = cpu_spheres.size();
-            args.push_back(&nspheres);
-            args.push_back(&spheres_gpu_addr);
-            int nboxes = cpu_boxes.size();
-            //nboxes = 0;
-            args.push_back(&nboxes);
-            args.push_back(&boxes_gpu_addr);
             int ntris = model.triangles_count;
             if (use_bvh)
                 ntris = 0;
@@ -225,22 +235,22 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_spheres.size(), cpu_spheres.data(), cpu_boxes.size(), cpu_boxes.data(), model.triangles_count, model.triangles_host, bvh.host_bvh);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh);
                 }
             }
             auto now = time();
             render_time = now - then;
         }
 
-        frames++;
+        frames_in_epoch++;
         auto now = time();
         total_time += render_time;
         auto delta = now - epoch;
         if (delta > 1000000000) {
-            assert(frames > 0);
-            auto avg_time = total_time / frames;
-            glfwSetWindowTitle(gfx_get_glfw_handle(window), (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames) + "frames.").c_str());
-            frames = 0;
+            assert(frames_in_epoch > 0);
+            auto avg_time = total_time / frames_in_epoch;
+            glfwSetWindowTitle(gfx_get_glfw_handle(window), (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames_in_epoch) + "frames.").c_str());
+            frames_in_epoch = 0;
             total_time = 0;
             epoch = now;
         }
@@ -249,6 +259,7 @@ int main(int argc, char** argv) {
         glfwSwapInterval(0);
         glfwSwapBuffers(gfx_get_glfw_handle(window));
         glfwPollEvents();
-    } while(!glfwWindowShouldClose(gfx_get_glfw_handle(window)));
+        frame++;
+    } while((max_frames == 0 || frame < max_frames) && !glfwWindowShouldClose(gfx_get_glfw_handle(window)));
     return 0;
 }

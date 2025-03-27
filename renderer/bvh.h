@@ -24,7 +24,7 @@ struct BVH {
     int* indices;
     Triangle* tris;
 
-    Hit intersect(Ray ray, vec3 inverted_ray_dir);
+    bool intersect(Ray ray, vec3 inverted_ray_dir, Hit& hit);
 };
 
 #endif
