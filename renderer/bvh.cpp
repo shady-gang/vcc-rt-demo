@@ -1,12 +1,13 @@
 #include "bvh.h"
 
 bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit) {
-    Node* stack[64];
+    int stack[32];
     int stack_size = 0;
 
     bool hit_something = false;
-    Node* n = &nodes[root];
+    int id = root;
     while (true) {
+        Node* n = &nodes[id];
         if (n->is_leaf) {
             for (int i = 0; i < n->leaf.count; i++) {
                 if (tris[indices[n->leaf.start + i]].intersect(ray, hit)) {
@@ -24,14 +25,14 @@ bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit) {
                 //        //return bbox_hit;
                 //}
                 //n = &nodes[n->inner.children[BVH_ARITY - 1]];
-                stack[stack_size++] = &nodes[n->inner.children[0]];
-                n = &nodes[n->inner.children[1]];
+                stack[stack_size++] = n->inner.children[0];
+                id = n->inner.children[1];
                 continue;
             }
         }
         if (stack_size == 0)
             break;
-        n = stack[--stack_size];
+        id = stack[--stack_size];
     }
     return hit_something;
 }
