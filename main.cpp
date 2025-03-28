@@ -77,11 +77,12 @@ void camera_update(GLFWwindow*, CameraInput* input);
 extern "C" {
 
 thread_local vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh);
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, bool heat);
 }
 
 bool gpu = true;
 bool use_bvh = true;
+bool use_heat = true;
 
 int max_frames = 0;
 
@@ -115,11 +116,13 @@ int main(int argc, char** argv) {
             gpu = !gpu;
         }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
             use_bvh = !use_bvh;
+        }if (action == GLFW_PRESS && key == GLFW_KEY_H) {
+            use_heat = !use_heat;
         }
     });
 
     shady::RunnerConfig runtime_config = {};
-    runtime_config.use_validation = true;
+    runtime_config.use_validation = false;
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
@@ -222,6 +225,7 @@ int main(int argc, char** argv) {
             uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
             args.push_back(&ptr);
             args.push_back(&bvh.gpu_bvh);
+            args.push_back(&use_heat);
             //BVH* gpu_bvh = bvh.gpu_bvh;
 
             shady::ExtraKernelOptions launch_options = {
@@ -236,7 +240,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, use_heat);
                 }
             }
             auto now = time();

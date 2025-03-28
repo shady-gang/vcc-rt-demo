@@ -36,7 +36,7 @@ thread_local extern vec2 gl_GlobalInvocationID;
 compute_shader local_size(16, 16, 1)
 #endif
 //[[gnu::flatten]]
-void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int ntris, Triangle* triangles, BVH bvh) {
+void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int ntris, Triangle* triangles, BVH bvh, bool heat) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -65,7 +65,8 @@ void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int ntris, 
 
     if (nearest_hit.t > 0.0f)
         buf[(y * width + x)] = pack_color(nearest_hit.n);
-    buf[(y * width + x)] = pack_color(vec3(log2f(iter) / 8.0f));
+    if (heat)
+        buf[(y * width + x)] = pack_color(vec3(log2f(iter) / 8.0f));
     //buf[(y * width + x)] = pack_color(vec3f_to_vec3(forward));
 }
 

@@ -65,6 +65,8 @@ BVHHost::BVHHost(Model& model, Device* device) {
     int id = 0;
     for (auto& old : bvh.nodes) {
         BVH::Node n = { old.is_leaf() };
+        auto old_box = old.get_bbox();
+        n.box = BBox(bvh2nasl(old_box.min), bvh2nasl(old_box.max));
         if (old.is_leaf()) {
             n.leaf.count = 0;
             n.leaf.start = indices.size();
@@ -77,8 +79,6 @@ BVHHost::BVHHost(Model& model, Device* device) {
                 //printf("Tri: (%f,%f,%f), (%f,%f,%f), (%f,%f,%f)\n", tri.v0[0], tri.v0[1], tri.v0[2], tri.v1[0], tri.v1[1], tri.v1[2], tri.v2[0], tri.v2[1], tri.v2[2]);
             }
         } else {
-            auto old_box = old.get_bbox();
-            n.inner.box = BBox(bvh2nasl(old_box.min), bvh2nasl(old_box.max));
             //printf("Box: (%f,%f,%f), (%f,%f,%f)\n", (float) n.inner.box.min.x, (float) n.inner.box.min.y, (float) n.inner.box.min.z, (float) n.inner.box.max.x, (float) n.inner.box.max.y, (float) n.inner.box.max.z);
             n.inner.children[0] = ( old.index.first_id());
             n.inner.children[1] = ( old.index.first_id() + 1);

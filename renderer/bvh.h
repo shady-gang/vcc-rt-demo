@@ -8,13 +8,13 @@
 struct BVH {
     struct Node {
         bool is_leaf;
+        BBox box;
         union {
             struct {
                 size_t count;
                 int start;
             } leaf;
             struct {
-                BBox box;
                 int children[BVH_ARITY];
             } inner;
         };

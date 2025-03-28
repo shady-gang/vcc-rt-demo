@@ -6,7 +6,7 @@
 
 #ifdef __SHADY__
 #include "shady.h"
-static float M_PI = 3.14159f;
+static float M_PI = 3.14159265f;
 static float sinf(float) __asm__("shady::pure_op::GLSL.std.450::13::Invocation");
 static float cosf(float) __asm__("shady::pure_op::GLSL.std.450::14::Invocation");
 static float tanf(float) __asm__("shady::pure_op::GLSL.std.450::15::Invocation");
