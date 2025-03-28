@@ -1,12 +1,14 @@
 #include "bvh.h"
 
-bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit) {
+bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, int* iteration_count) {
     int stack[32];
     int stack_size = 0;
 
     bool hit_something = false;
     int id = root;
-    while (true) {
+    int max_iter = 512;
+    int k;
+    for (k = 0; k < max_iter; k++) {
         Node n = nodes[id];
         if (n.is_leaf) {
             for (int i = 0; i < n.leaf.count; i++) {
@@ -34,5 +36,6 @@ bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit) {
             break;
         id = stack[--stack_size];
     }
+    *iteration_count = k;
     return hit_something;
 }

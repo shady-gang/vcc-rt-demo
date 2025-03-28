@@ -15,6 +15,8 @@ static float fminf(float, float) __asm__("shady::pure_op::GLSL.std.450::37::Invo
 static float fmaxf(float, float) __asm__("shady::pure_op::GLSL.std.450::40::Invocation");
 static float sqrtf(float) __asm__("shady::pure_op::GLSL.std.450::31::Invocation");
 static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
+static float logf(float) __asm__("shady::pure_op::GLSL.std.450::28::Invocation");
+static float log2f(float) __asm__("shady::pure_op::GLSL.std.450::30::Invocation");
 
 typedef long int size_t;
 
