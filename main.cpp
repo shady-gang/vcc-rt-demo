@@ -77,12 +77,12 @@ void camera_update(GLFWwindow*, CameraInput* input);
 extern "C" {
 
 thread_local vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, unsigned frame, bool heat);
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, unsigned frame, unsigned accum, bool heat);
 }
 
 bool gpu = true;
 bool use_bvh = true;
-bool use_heat = true;
+bool use_heat = false;
 
 int max_frames = 0;
 
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
     int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
-    int frame = 0;
+    int frame = 0, accum = 0;
     glfwSwapInterval(1);
     do {
         int nwidth, nheight;
@@ -209,7 +209,8 @@ int main(int argc, char** argv) {
         }
 
         camera_update(gfx_get_glfw_handle(window), &camera_input);
-        camera_move_freelook(&camera, &camera_input, &camera_state);
+        if (camera_move_freelook(&camera, &camera_input, &camera_state))
+            accum = 0;
 
         uint64_t render_time;
         if (gpu) {
@@ -226,6 +227,7 @@ int main(int argc, char** argv) {
             args.push_back(&ptr);
             args.push_back(&bvh.gpu_bvh);
             args.push_back(&frame);
+            args.push_back(&accum);
             args.push_back(&use_heat);
             //BVH* gpu_bvh = bvh.gpu_bvh;
 
@@ -241,7 +243,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, use_heat);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, accum, use_heat);
                 }
             }
             auto now = time();
@@ -266,6 +268,7 @@ int main(int argc, char** argv) {
         glfwSwapBuffers(gfx_get_glfw_handle(window));
         glfwPollEvents();
         frame++;
+        accum++;
     } while((max_frames == 0 || frame < max_frames) && !glfwWindowShouldClose(gfx_get_glfw_handle(window)));
     return 0;
 }

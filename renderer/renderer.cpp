@@ -125,7 +125,21 @@ RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
 
 RA_FUNCTION uint32_t pack_color(vec3 color) {
     color = clamp(color, vec3(0.0f), vec3(1.0f));
+    color.x = sqrtf(color.x);
+    color.y = sqrtf(color.y);
+    color.z = sqrtf(color.z);
     return (((int) (color.z * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.x * 255) & 0xFF);
+}
+
+RA_FUNCTION vec3 unpack_color(unsigned int packed) {
+    unsigned r = packed & 0xFF;
+    unsigned g = (packed >> 8) & 0xFF;
+    unsigned b = (packed >> 16) & 0xFF;
+    vec3 color((float)r/255.f,(float)g/255.f,(float)b/255.f);
+    color.x = powf(color.x, 2.0f);
+    color.y = powf(color.y, 2.0f);
+    color.z = powf(color.z, 2.0f);
+    return color;
 }
 
 extern "C" {
@@ -145,7 +159,7 @@ compute_shader local_size(16, 16, 1)
 #elif __CUDACC__
 __global__
 #endif
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle* triangles, BVH bvh, unsigned frame, bool heat) {
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle* triangles, BVH bvh, unsigned frame, unsigned accum, bool heat) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)
@@ -155,7 +169,6 @@ void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris,
     float dy = (y / (float) height) * 2.0f - 1;
     vec3 origin = cam.position;
     Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))), 0, 99999 };
-    buf[(y * width + x)] = pack_color(vec3(0.0f, 0.5f, 1.0f));
 
     vec3 ray_inv_dir = vec3(1.0f) / r.dir;
 
@@ -172,11 +185,19 @@ void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris,
         bvh.intersect(r, ray_inv_dir, nearest_hit, &iter);
     }
 
-    unsigned int rng = x * width + y + frame;
-    if (nearest_hit.t > 0.0f)
-        buf[(y * width + x)] = pack_color(ambient_occlusion(&rng, bvh, &nearest_hit));
+    unsigned int rng = (x * width + y) ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
     if (heat)
         buf[(y * width + x)] = pack_color(vec3(log2f(iter) / 8.0f));
+    else {
+        vec3 color = vec3(0.0f, 0.5f, 1.0f);
+        if (nearest_hit.t > 0.0f)
+            color = ambient_occlusion(&rng, bvh, &nearest_hit);
+        if (accum > 0) {
+            float f = 0.01f + 1.0f / accum;
+            buf[(y * width + x)] = pack_color(unpack_color(buf[(y * width + x)]) * (1.0f - f) + color * f);
+        } else
+            buf[(y * width + x)] = pack_color(color);
+    }
     //buf[(y * width + x)] = pack_color(vec3f_to_vec3(forward));
 }
 
