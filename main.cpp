@@ -47,11 +47,20 @@ CameraFreelookState camera_state = {
 };
 CameraInput camera_input;
 
+#if defined(__MINGW64__) | defined(__MINGW32__)
+#include <pthread.h>
+static auto time() -> uint64_t {
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+    return t.tv_sec * 1000000000 + t.tv_nsec;
+}
+#else
 static auto time() -> uint64_t {
     timespec t = { 0 };
     timespec_get(&t, TIME_UTC);
     return t.tv_sec * 1000000000 + t.tv_nsec;
 }
+#endif
 
 #define xstr(s) str(s)
 #define str(s) #s
