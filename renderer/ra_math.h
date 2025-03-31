@@ -39,9 +39,9 @@ RA_FUNCTION float sign(float f) {
 
 #define RA_FUNCTION
 #define RA_METHOD
-#define RA_CONSTANT
+#define RA_CONSTANT static inline
 
-RA_FUNCTION float sign(float f) {
+RA_FUNCTION static float sign(float f) {
     return copysignf(1.0f, f);
 }
 #endif
