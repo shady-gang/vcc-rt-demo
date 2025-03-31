@@ -1,6 +1,6 @@
 #include "primitives.h"
 
-bool Sphere::intersect(Ray r, Hit& hit) {
+RA_METHOD bool Sphere::intersect(Ray r, Hit& hit) {
     vec3 rs = r.origin - this->center;
     float b = dot(rs, r.dir);
     float c = dot(rs, rs) - this->radius * this->radius;
@@ -19,7 +19,7 @@ bool Sphere::intersect(Ray r, Hit& hit) {
     return false;
 }
 
-void BBox::intersect_range(Ray r, nasl::vec3 ray_inv_dir, float t[2]) {
+RA_METHOD void BBox::intersect_range(Ray r, nasl::vec3 ray_inv_dir, float t[2]) {
     float txmin = fmaf(this->min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float txmax = fmaf(this->max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float tymin = fmaf(this->min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
@@ -40,7 +40,7 @@ void BBox::intersect_range(Ray r, nasl::vec3 ray_inv_dir, float t[2]) {
     t[1] = t1;
 }
 
-bool BBox::intersect(Ray r, vec3 ray_inv_dir, Hit& hit) {
+RA_METHOD bool BBox::intersect(Ray r, vec3 ray_inv_dir, Hit& hit) {
     float txmin = fmaf(this->min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float txmax = fmaf(this->max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
     float tymin = fmaf(this->min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
@@ -91,13 +91,13 @@ bool BBox::intersect(Ray r, vec3 ray_inv_dir, Hit& hit) {
     return false;
 }
 
-bool BBox::contains(vec3 point) {
+RA_METHOD bool BBox::contains(vec3 point) {
     return point.x >= min.x && point.x <= max.x
         && point.y >= min.y && point.y <= max.y
         && point.z >= min.z && point.z <= max.z;
 }
 
-bool Triangle::intersect(Ray ray, Hit& hit) {
+RA_METHOD bool Triangle::intersect(Ray ray, Hit& hit) {
     const auto &v0       = this->v0;
     const auto &v1       = this->v1;
     const auto &v2       = this->v2;

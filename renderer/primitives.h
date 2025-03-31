@@ -18,21 +18,21 @@ struct Sphere {
     vec3 center;
     float radius;
 
-    bool intersect(Ray r, Hit&);
+    RA_METHOD bool intersect(Ray r, Hit&);
 };
 
 struct BBox {
     vec3 min, max;
 
-    void intersect_range(Ray r, vec3 ray_inv_dir, float t[2]);
-    bool intersect(Ray r, vec3 ray_inv_dir, Hit&);
-    bool contains(vec3 point);
+    RA_METHOD void intersect_range(Ray r, vec3 ray_inv_dir, float t[2]);
+    RA_METHOD bool intersect(Ray r, vec3 ray_inv_dir, Hit&);
+    RA_METHOD bool contains(vec3 point);
 };
 
 struct Triangle {
     vec3 v0, v1, v2;
 
-    bool intersect(Ray r, Hit&);
+    RA_METHOD bool intersect(Ray r, Hit&);
 };
 
 #endif

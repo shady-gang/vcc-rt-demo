@@ -3,7 +3,8 @@
 #include "ra_math.h"
 using namespace nasl;
 
-#include <stdint.h>
+//#include <stdint.h>
+typedef unsigned int uint32_t;
 
 #include "camera.h"
 #include "primitives.h"
@@ -11,14 +12,14 @@ using namespace nasl;
 
 static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
-vec3 clamp(vec3 v, vec3 min, vec3 max) {
+RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
     v.x = fminf(max.x, fmaxf(v.x, min.x));
     v.y = fminf(max.y, fmaxf(v.y, min.y));
     v.z = fminf(max.z, fmaxf(v.z, min.z));
     return v;
 }
 
-int32_t pack_color(vec3 color) {
+RA_FUNCTION uint32_t pack_color(vec3 color) {
     color = clamp(color, vec3(0.0f), vec3(1.0f));
     return (((int) (color.z * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.x * 255) & 0xFF);
 }
@@ -28,15 +29,19 @@ extern "C" {
 #ifdef __SHADY__
 #include "shady.h"
 using namespace vcc;
+#elif __CUDACC__
+#define gl_GlobalInvocationID (uint3(threadIdx.x + blockDim.x * blockIdx.x, threadIdx.y + blockDim.y * blockIdx.y, threadIdx.z + blockDim.z * blockIdx.z))
 #else
 thread_local extern vec2 gl_GlobalInvocationID;
 #endif
 
 #ifdef __SHADY__
 compute_shader local_size(16, 16, 1)
+[[gnu::flatten]]
+#elif __CUDACC__
+__global__
 #endif
-//[[gnu::flatten]]
-void render_a_pixel(Camera cam, int width, int height, int32_t* buf, int ntris, Triangle* triangles, BVH bvh, bool heat) {
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle* triangles, BVH bvh, bool heat) {
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
     if (x >= width || y >= height)

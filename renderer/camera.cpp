@@ -2,16 +2,16 @@
 
 using namespace nasl;
 
-static mat4 camera_rotation_matrix(const Camera* camera) {
+RA_FUNCTION mat4 camera_rotation_matrix(const Camera* camera) {
     mat4 matrix = identity_mat4;
     matrix = mul_mat4(rotate_axis_mat4(1, camera->rotation.yaw), matrix);
     matrix = mul_mat4(rotate_axis_mat4(0, camera->rotation.pitch), matrix);
     return matrix;
 }
 
-mat4 rotate_axis_mat4f(unsigned int axis, float f) {
+RA_FUNCTION mat4 rotate_axis_mat4f(unsigned int axis, float f) {
     mat4 m = { 0 };
-    m.m33 = 1;
+    m.elems.m33 = 1;
 
     unsigned int t = (axis + 2) % 3;
     unsigned int s = (axis + 1) % 3;
@@ -27,7 +27,7 @@ mat4 rotate_axis_mat4f(unsigned int axis, float f) {
     return m;
 }
 
-vec3 camera_get_forward_vec(const Camera* cam, vec3 forward) {
+RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward) {
     vec4 initial_forward(forward, 1);
     // we invert the rotation matrix and use the front vector from the camera space to get the one in world space
     mat4 matrix = invert_mat4(camera_rotation_matrix(cam));
@@ -35,7 +35,7 @@ vec3 camera_get_forward_vec(const Camera* cam, vec3 forward) {
     return vec3_scale(result.xyz, 1.0f / result.w);
 }
 
-vec3 camera_get_left_vec(const Camera* cam) {
+RA_FUNCTION vec3 camera_get_left_vec(const Camera* cam) {
     vec4 initial_forward(-1, 0, 0, 1);
     mat4 matrix = invert_mat4(camera_rotation_matrix(cam));
     vec4 result = mul_mat4_vec4f(matrix, initial_forward);

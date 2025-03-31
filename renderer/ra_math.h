@@ -20,10 +20,28 @@ static float log2f(float) __asm__("shady::pure_op::GLSL.std.450::30::Invocation"
 
 typedef long int size_t;
 
+#define RA_FUNCTION static
+#define RA_METHOD
+#define RA_CONSTANT
+#elif __CUDACC__
+//static float M_PI = 3.14159265f;
+
+#define RA_FUNCTION __device__
+#define RA_METHOD __device__
+#define RA_CONSTANT __constant__
+
+RA_FUNCTION float sign(float f) {
+    return copysignf(1.0f, f);
+}
 #else
 #include <cmath>
 #include <cstddef>
-static inline float sign(float f) {
+
+#define RA_FUNCTION
+#define RA_METHOD
+#define RA_CONSTANT
+
+RA_FUNCTION float sign(float f) {
     return copysignf(1.0f, f);
 }
 #endif
@@ -32,12 +50,12 @@ static inline float sign(float f) {
 
 using namespace nasl;
 
-static constexpr float epsilon = 1e-4f;
+RA_CONSTANT float epsilon = 1e-4f;
 
 /// @brief Barycentric interpolation ([0,0] returns a, [1,0] returns b, and
 /// [0,1] returns c).
 template <typename T>
-static T interpolateBarycentric(const vec2 &bary, const T &a, const T &b,
+RA_FUNCTION T interpolateBarycentric(const vec2 &bary, const T &a, const T &b,
                                 const T &c) {
     return a * (1 - bary.x - bary.y) + b * bary.x + c * bary.y;
 }

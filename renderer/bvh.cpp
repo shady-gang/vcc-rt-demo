@@ -1,6 +1,6 @@
 #include "bvh.h"
 
-bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, int* iteration_count) {
+RA_METHOD bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, int* iteration_count) {
     int stack[32];
     int stack_size = 0;
 

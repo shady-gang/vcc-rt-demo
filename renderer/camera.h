@@ -1,3 +1,6 @@
+#ifndef RA_CAMERA_H
+#define RA_CAMERA_H
+
 #include "ra_math.h"
 
 #include "nasl.h"
@@ -13,9 +16,9 @@ typedef struct {
     float fov;
 } Camera;
 
-vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));
-vec3 camera_get_left_vec(const Camera*);
-mat4 camera_get_view_mat4(const Camera*, size_t, size_t);
+RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));
+RA_FUNCTION vec3 camera_get_left_vec(const Camera*);
+RA_FUNCTION mat4 camera_get_view_mat4(const Camera*, size_t, size_t);
 
 typedef struct {
     float fly_speed, mouse_sensitivity;
@@ -32,4 +35,6 @@ typedef struct {
     } keys;
 } CameraInput;
 
-void camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*);
+RA_FUNCTION void camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*);
+
+#endif
