@@ -36,8 +36,8 @@ thread_local extern vec2 gl_GlobalInvocationID;
 #endif
 
 #ifdef __SHADY__
-compute_shader local_size(16, 16, 1)
 [[gnu::flatten]]
+compute_shader local_size(16, 16, 1)
 #elif __CUDACC__
 __global__
 #endif
