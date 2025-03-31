@@ -77,7 +77,7 @@ void camera_update(GLFWwindow*, CameraInput* input);
 extern "C" {
 
 thread_local vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, bool heat);
+void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, unsigned frame, bool heat);
 }
 
 bool gpu = true;
@@ -225,6 +225,7 @@ int main(int argc, char** argv) {
             uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
             args.push_back(&ptr);
             args.push_back(&bvh.gpu_bvh);
+            args.push_back(&frame);
             args.push_back(&use_heat);
             //BVH* gpu_bvh = bvh.gpu_bvh;
 
@@ -240,7 +241,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, use_heat);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, use_heat);
                 }
             }
             auto now = time();
