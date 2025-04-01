@@ -257,7 +257,10 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, accum, render_mode);
+                    int ntris = model.triangles_count;
+                    if (use_bvh)
+                        ntris = 0;
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles_host, bvh.host_bvh, frame, accum, render_mode);
                 }
             }
             auto now = time();
