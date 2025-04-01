@@ -19,13 +19,13 @@ RA_METHOD bool Sphere::intersect(Ray r, Hit& hit) {
     return false;
 }
 
-RA_METHOD void BBox::intersect_range(Ray r, nasl::vec3 ray_inv_dir, float t[2]) {
-    float txmin = fmaf(this->min.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
-    float txmax = fmaf(this->max.x, ray_inv_dir.x, -(r.origin.x * ray_inv_dir.x));
-    float tymin = fmaf(this->min.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
-    float tymax = fmaf(this->max.y, ray_inv_dir.y, -(r.origin.y * ray_inv_dir.y));
-    float tzmin = fmaf(this->min.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
-    float tzmax = fmaf(this->max.z, ray_inv_dir.z, -(r.origin.z * ray_inv_dir.z));
+RA_METHOD void BBox::intersect_range(Ray r, vec3 ray_inv_dir, vec3 morigin_t_riv, float t[2]) {
+    float txmin = fmaf(this->min.x, ray_inv_dir.x, morigin_t_riv.x);
+    float txmax = fmaf(this->max.x, ray_inv_dir.x, morigin_t_riv.x);
+    float tymin = fmaf(this->min.y, ray_inv_dir.y, morigin_t_riv.y);
+    float tymax = fmaf(this->max.y, ray_inv_dir.y, morigin_t_riv.y);
+    float tzmin = fmaf(this->min.z, ray_inv_dir.z, morigin_t_riv.z);
+    float tzmax = fmaf(this->max.z, ray_inv_dir.z, morigin_t_riv.z);
 
     auto t0x = fminf(txmin, txmax);
     auto t1x = fmaxf(txmin, txmax);

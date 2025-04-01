@@ -24,7 +24,7 @@ struct Sphere {
 struct BBox {
     vec3 min, max;
 
-    RA_METHOD void intersect_range(Ray r, vec3 ray_inv_dir, float t[2]);
+    RA_METHOD void intersect_range(Ray r, vec3 ray_inv_dir, vec3 morigin_t_riv, float t[2]);
     RA_METHOD bool intersect(Ray r, vec3 ray_inv_dir, Hit&);
     RA_METHOD bool contains(vec3 point);
 };

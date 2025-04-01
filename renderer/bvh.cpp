@@ -1,12 +1,15 @@
 #include "bvh.h"
 
-RA_METHOD bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, int* iteration_count) {
+RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, int* iteration_count) {
     int stack[32];
     int stack_size = 0;
 
-    auto isect = [](Ray& ray, nasl::vec3& inverted_ray_dir, BBox& box, float& distance) {
+    vec3 inverted_ray_dir = vec3(1.0f) / ray.dir;
+    vec3 morigin_t_riv = -ray.origin * inverted_ray_dir;
+
+    auto isect = [&](BBox& box, float& distance) {
         float bbox_t[2];
-        box.intersect_range(ray, inverted_ray_dir, bbox_t);
+        box.intersect_range(ray, inverted_ray_dir, morigin_t_riv, bbox_t);
         distance = bbox_t[0];
         return (bbox_t[0] <= bbox_t[1] && bbox_t[1] > 0 && bbox_t[0] < ray.tmax);
     };
@@ -18,7 +21,7 @@ RA_METHOD bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, in
     for (k = 0; k < max_iter; k++) {
         Node n = nodes[id];
         float d;
-        if (isect(ray, inverted_ray_dir, n.box, d)) {
+        if (true || isect(n.box, d)) {
             if (n.is_leaf) {
                 for (int i = 0; i < n.leaf.count; i++) {
                     if (tris[indices[n.leaf.start + i]].intersect(ray, hit)) {
@@ -29,11 +32,11 @@ RA_METHOD bool BVH::intersect(Ray ray, nasl::vec3 inverted_ray_dir, Hit& hit, in
             } else {
                 int left_child = n.inner.children[0];
                 float left_d;
-                bool left_hit = isect(ray, inverted_ray_dir, nodes[left_child].box, left_d);
+                bool left_hit = isect(nodes[left_child].box, left_d);
 
                 int right_child = n.inner.children[1];
                 float right_d;
-                bool right_hit = isect(ray, inverted_ray_dir, nodes[right_child].box, right_d);
+                bool right_hit = isect(nodes[right_child].box, right_d);
 
                 if (left_hit && right_hit) {
                     int closest_child = right_d < left_d;

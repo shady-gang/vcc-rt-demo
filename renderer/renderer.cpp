@@ -94,9 +94,8 @@ RA_FUNCTION vec3 ambient_occlusion(unsigned int* rng, BVH& bvh, const Hit *isect
 
             Hit occ_hit = { .t = ray.tmax };
 
-            vec3 inv = vec3(1.0f) / ray.dir;
             int dc;
-            if (bvh.intersect(ray, inv, occ_hit, &dc))
+            if (bvh.intersect(ray, occ_hit, &dc))
                 occlusion += 1.0f;
         }
     }
@@ -172,7 +171,7 @@ RA_RENDERER_SIGNATURE {
         }
     } else {
         // BVH shizzle
-        bvh.intersect(r, ray_inv_dir, nearest_hit, &iter);
+        bvh.intersect(r, nearest_hit, &iter);
     }
 
     switch (mode) {
