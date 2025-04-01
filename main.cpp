@@ -10,7 +10,7 @@
 extern "C" {
 namespace shady {
 
-#include "shady/runner.h"
+#include "shady/runner/runner.h"
 #include "shady/driver.h"
 #include "shady/ir/module.h"
 

@@ -4,7 +4,7 @@
 namespace shady {
 extern "C" {
 
-#include "shady/runner.h"
+#include "shady/runner/runner.h"
 
 }
 }
