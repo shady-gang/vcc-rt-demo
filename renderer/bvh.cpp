@@ -24,7 +24,13 @@ RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, int* iteration_count) {
         if (true || isect(n.box, d)) {
             if (n.is_leaf) {
                 for (int i = 0; i < n.leaf.count; i++) {
-                    if (tris[indices[n.leaf.start + i]].intersect(ray, hit)) {
+                    size_t iindex = n.leaf.start + i;
+#ifndef BVH_REORDER_TRIS
+                    size_t tindex = indices[iindex];
+#else
+                    size_t tindex = iindex;
+#endif
+                    if (tris[tindex].intersect(ray, hit)) {
                         hit_something = true;
                         ray.tmax = hit.t;
                     }

@@ -1,26 +1,18 @@
 #ifndef RA_MODEL_H
 #define RA_MODEL_H
 
+#include "host.h"
 #include "renderer/primitives.h"
 
 #include <string>
-
-#include "nasl.h"
-
-namespace shady {
-extern "C" {
-
-#include "shady/runner.h"
-
-}
-}
 
 struct Model {
     Model(const char* path, shady::Device*);
     ~Model();
 
-    int triangles_count = 0;
-    Triangle* triangles_host;
+    // int triangles_count = 0;
+    // Triangle* triangles_host;
+    std::vector<Triangle> triangles;
     shady::Buffer* triangles_gpu;
 };
 

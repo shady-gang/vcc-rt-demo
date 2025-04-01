@@ -36,23 +36,23 @@ BVHHost::BVHHost(Model& model, Device* device) {
     bvh::v2::ThreadPool thread_pool;
     bvh::v2::ParallelExecutor executor(thread_pool);
 
-    std::vector<BTri> btris;
-    for (int i = 0; i < model.triangles_count; i++) {
-        auto& oldtri = model.triangles_host[i];
+    std::vector<BTri> input_tris;
+    for (int i = 0; i < model.triangles.size(); i++) {
+        auto& oldtri = model.triangles[i];
         BTri tri;
         tri.p0 = nasl2bvh(oldtri.v0);
         tri.p1 = nasl2bvh(oldtri.v1);
         tri.p2 = nasl2bvh(oldtri.v2);
         //printf("Tri: (%f,%f,%f), (%f,%f,%f), (%f,%f,%f)\n", tri.p0[0], tri.p0[1], tri.p0[2], tri.p1[0], tri.p1[1], tri.p1[2], tri.p2[0], tri.p2[1], tri.p2[2]);
-        btris.push_back(tri);
+        input_tris.push_back(tri);
     }
 
-    std::vector<BBBox> bboxes(btris.size());
-    std::vector<Vec3> centers(btris.size());
-    executor.for_each(0, btris.size(), [&] (size_t begin, size_t end) {
+    std::vector<BBBox> bboxes(input_tris.size());
+    std::vector<Vec3> centers(input_tris.size());
+    executor.for_each(0, input_tris.size(), [&] (size_t begin, size_t end) {
         for (size_t i = begin; i < end; ++i) {
-            bboxes[i]  = btris[i].get_bbox();
-            centers[i] = btris[i].get_center();
+            bboxes[i]  = input_tris[i].get_bbox();
+            centers[i] = input_tris[i].get_center();
         }
     });
 
@@ -60,22 +60,22 @@ BVHHost::BVHHost(Model& model, Device* device) {
     config.quality = bvh::v2::DefaultBuilder<BNode>::Quality::High;
     auto bvh = bvh::v2::DefaultBuilder<BNode>::build(thread_pool, bboxes, centers, config);
 
-    std::vector<BVH::Node> nodes;
-    std::vector<int> indices;
-    int id = 0;
+    std::vector<BVH::Node> tmp_nodes;
+    std::vector<int> tmp_indices;
     for (auto& old : bvh.nodes) {
         BVH::Node n = { old.is_leaf() };
         auto old_box = old.get_bbox();
         n.box = BBox(bvh2nasl(old_box.min), bvh2nasl(old_box.max));
         if (old.is_leaf()) {
             n.leaf.count = 0;
-            n.leaf.start = indices.size();
+            n.leaf.start = tmp_indices.size();
+            //printf("Box: (%f,%f,%f), (%f,%f,%f)\n", (float) n.box.min.x, (float) n.box.min.y, (float) n.box.min.z, (float) n.box.max.x, (float) n.box.max.y, (float) n.box.max.z);
             for (int i = 0; i < old.index.prim_count(); i++) {
                 //tris.push_back(t);
                 auto id = bvh.prim_ids[old.index.first_id() + i];
-                indices.push_back(id);
+                tmp_indices.push_back(id);
                 n.leaf.count += 1;
-                Triangle tri = model.triangles_host[id];
+                Triangle tri = model.triangles[id];
                 //printf("Tri: (%f,%f,%f), (%f,%f,%f), (%f,%f,%f)\n", tri.v0[0], tri.v0[1], tri.v0[2], tri.v1[0], tri.v1[1], tri.v1[2], tri.v2[0], tri.v2[1], tri.v2[2]);
             }
         } else {
@@ -84,26 +84,51 @@ BVHHost::BVHHost(Model& model, Device* device) {
             n.inner.children[1] = ( old.index.first_id() + 1);
             //printf("Inner[%d]: left: %d, right: %d\n", id, n.inner.children[0], n.inner.children[1]);
         }
-        nodes.push_back(n);
-        id++;
+        tmp_nodes.push_back(n);
     }
 
-    host_bvh.root = ((&bvh.get_root() - bvh.nodes.data()) / sizeof(*bvh.nodes.data()));
-    host_bvh.tris = model.triangles_host;
-    //printf("BVH: %d nodes, root=%d\n", nodes.size(), host_bvh.root);
-    host_bvh.nodes = (BVH::Node*) malloc(nodes.size() * sizeof(BVH::Node));
-    memcpy(host_bvh.nodes, nodes.data(), nodes.size() * sizeof(BVH::Node));
-    gpu_nodes = shd_rn_allocate_buffer_device(device, nodes.size() * sizeof(BVH::Node));
-    shd_rn_copy_to_buffer(gpu_nodes, 0, host_bvh.nodes, nodes.size() * sizeof(BVH::Node));
-    host_bvh.indices = (int*) malloc(indices.size() * sizeof(int));
-    memcpy(host_bvh.indices, indices.data(), indices.size() * sizeof(int));
-    gpu_indices = shd_rn_allocate_buffer_device(device, indices.size() * sizeof(int));
-    shd_rn_copy_to_buffer(gpu_indices, 0, host_bvh.indices, indices.size() * sizeof(int));
+    // This precomputes some data to speed up traversal further.
+    std::vector<Triangle> tmp_reordered_tris(model.triangles.size());
+    executor.for_each(0, model.triangles.size(), [&] (size_t begin, size_t end) {
+        for (size_t i = begin; i < end; ++i) {
+            auto j = true ? tmp_indices[i] : i;
+            tmp_reordered_tris[i] = model.triangles[j];
+        }
+    });
+
+    nodes = std::move(tmp_nodes);
+#ifdef BVH_REORDER_TRIS
+    reordered_tris = std::move(tmp_reordered_tris);
+#else
+    indices = std::move(tmp_indices);
+#endif
+
+    auto root_index = ((&bvh.get_root() - bvh.nodes.data()) / sizeof(*bvh.nodes.data()));
+
+    host_bvh.root = (int) root_index;
+    host_bvh.nodes = nodes.data();
+#ifdef BVH_REORDER_TRIS
+    host_bvh.tris = reordered_tris.data();
+#else
+    host_bvh.indices = indices.data();
+#endif
+
+    offload(device, nodes, gpu_nodes);
+#ifdef BVH_REORDER_TRIS
+    offload(device, reordered_tris, gpu_reordered_tris);
+#else
+    offload(device, indices, gpu_indices);
+#endif
+
     gpu_bvh = host_bvh;
     gpu_bvh.nodes = reinterpret_cast<BVH::Node*>(shd_rn_get_buffer_device_pointer(gpu_nodes));
-    gpu_bvh.indices = reinterpret_cast<int*>(shd_rn_get_buffer_device_pointer(gpu_indices));
+#ifdef BVH_REORDER_TRIS
+    gpu_bvh.tris = reinterpret_cast<Triangle*>(shd_rn_get_buffer_device_pointer(gpu_reordered_tris));
+#else
     gpu_bvh.tris = reinterpret_cast<Triangle*>(shd_rn_get_buffer_device_pointer(model.triangles_gpu));
+    gpu_bvh.indices = reinterpret_cast<int*>(shd_rn_get_buffer_device_pointer(gpu_indices));
+#endif
 
     int c = count_tris(&host_bvh, host_bvh.root);
-    assert(c == model.triangles_count);
+    assert(c == model.triangles.size());
 }

@@ -43,16 +43,12 @@ Model::Model(const char* path, Device* device) {
     }
 
     //tris.resize(256);
-    this->triangles_count = tris.size();
-    printf("Loaded %d triangles\n", this->triangles_count);
+    this->triangles = std::move(tris);
+    printf("Loaded %zu triangles\n", this->triangles.size());
 
-    this->triangles_gpu = shd_rn_allocate_buffer_device(device, tris.size() * sizeof(Triangle));
-    shd_rn_copy_to_buffer(this->triangles_gpu, 0, tris.data(), tris.size() * sizeof(Triangle));
-    triangles_host = (Triangle*) malloc(tris.size() * sizeof(Triangle));
-    memcpy(triangles_host, tris.data(), tris.size() * sizeof(Triangle));
+    offload(device, triangles, triangles_gpu);
 }
 
 Model::~Model() {
     shd_rn_destroy_buffer(triangles_gpu);
-    free(triangles_host);
 }

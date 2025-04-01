@@ -5,6 +5,8 @@
 
 #define BVH_ARITY 2
 
+#define BVH_REORDER_TRIS
+
 struct BVH {
     struct Node {
         bool is_leaf;
@@ -21,7 +23,9 @@ struct BVH {
     };
     int root = 0;
     Node* nodes;
+#ifndef BVH_REORDER_TRIS
     int* indices;
+#endif
     Triangle* tris;
 
     RA_METHOD bool intersect(Ray ray, Hit& hit, int* iteration_count);

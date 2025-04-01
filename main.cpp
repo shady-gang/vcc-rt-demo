@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
             args.push_back(&WIDTH);
             args.push_back(&HEIGHT);
             args.push_back(&fb_gpu_addr);
-            int ntris = model.triangles_count;
+            int ntris = model.triangles.size();
             if (use_bvh)
                 ntris = 0;
             args.push_back(&ntris);
@@ -257,10 +257,10 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    int ntris = model.triangles_count;
+                    int ntris = model.triangles.size();
                     if (use_bvh)
                         ntris = 0;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles_host, bvh.host_bvh, frame, accum, render_mode);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles.data(), bvh.host_bvh, frame, accum, render_mode);
                 }
             }
             auto now = time();
