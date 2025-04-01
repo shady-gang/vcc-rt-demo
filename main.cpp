@@ -23,8 +23,7 @@ bool read_file(const char* filename, size_t* size, char** output);
 GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
-#include "renderer/primitives.h"
-#include "renderer/camera.h"
+#include "renderer/renderer.h"
 
 #include "model.h"
 #include "bvh_host.h"
@@ -86,14 +85,15 @@ void camera_update(GLFWwindow*, CameraInput* input);
 extern "C" {
 
 thread_local vec2 gl_GlobalInvocationID;
-void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle*, BVH bvh, unsigned frame, unsigned accum, bool heat);
+RA_RENDERER_SIGNATURE;
 }
 
 bool gpu = true;
 bool use_bvh = true;
-bool use_heat = false;
+RenderMode render_mode = AO;
 
 int max_frames = 0;
+int frame = 0, accum = 0;
 
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
@@ -105,6 +105,11 @@ int main(int argc, char** argv) {
         }
         if (strcmp(argv[i], "--no-bvh") == 0) {
             use_bvh = false;
+            continue;
+        }
+        if (strcmp(argv[i], "--speed") == 0) {
+            camera_state.fly_speed = strtof(argv[++i], nullptr);
+            continue;
         }
         model_filename = argv[i];
     }
@@ -115,7 +120,7 @@ int main(int argc, char** argv) {
     }
 
     GfxCtx* gfx_ctx;
-    int WIDTH = 800, HEIGHT = 600;
+    int WIDTH = 832*2, HEIGHT = 640*2;
     Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
     if (!window)
         return 0;
@@ -126,7 +131,8 @@ int main(int argc, char** argv) {
         }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
             use_bvh = !use_bvh;
         }if (action == GLFW_PRESS && key == GLFW_KEY_H) {
-            use_heat = !use_heat;
+            render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
+            accum = 0;
         }
     });
 
@@ -201,7 +207,6 @@ int main(int argc, char** argv) {
     int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
-    int frame = 0, accum = 0;
     glfwSwapInterval(1);
     do {
         int nwidth, nheight;
@@ -237,7 +242,7 @@ int main(int argc, char** argv) {
             args.push_back(&bvh.gpu_bvh);
             args.push_back(&frame);
             args.push_back(&accum);
-            args.push_back(&use_heat);
+            args.push_back(&render_mode);
             //BVH* gpu_bvh = bvh.gpu_bvh;
 
             shady::ExtraKernelOptions launch_options = {
@@ -252,7 +257,7 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < HEIGHT; y++) {
                     gl_GlobalInvocationID.x = x;
                     gl_GlobalInvocationID.y = y;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, accum, use_heat);
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, model.triangles_count, model.triangles_host, bvh.host_bvh, frame, accum, render_mode);
                 }
             }
             auto now = time();
