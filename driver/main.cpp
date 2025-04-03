@@ -286,13 +286,6 @@ int main(int argc, char** argv) {
                 epoch = now;
             }
 
-            // blitImage(window, gfx_ctx, WIDTH, HEIGHT, cpu_fb);
-            //glfwSwapInterval(0);
-            //glfwSwapBuffers(window);
-            glfwPollEvents();
-            nframe++;
-            accum++;
-
             VkFence fence;
             vkCreateFence(context.device, tmp((VkFenceCreateInfo) {
                 .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -310,6 +303,9 @@ int main(int argc, char** argv) {
             vkDestroyFence(context.device, fence, nullptr);
             //frame.present(std::nullopt);
         });
+
+        nframe++;
+        accum++;
 
         fps_counter.tick();
         fps_counter.updateGlfwWindowTitle(window);
