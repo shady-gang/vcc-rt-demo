@@ -4,3 +4,6 @@
 [submodule "cunk"]
 	path = cunk
 	url = git@github.com:Hugobros3/cunk
+[submodule "imr"]
+	path = imr
+	url = https://github.com/shady-gang/imr.git

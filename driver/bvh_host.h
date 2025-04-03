@@ -1,5 +1,5 @@
 #include "host.h"
-#include "renderer/bvh.h"
+#include "bvh.h"
 #include "model.h"
 
 struct BVHHost {

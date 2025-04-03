@@ -2,7 +2,7 @@
 #define RA_MODEL_H
 
 #include "host.h"
-#include "renderer/primitives.h"
+#include "primitives.h"
 
 #include <string>
 

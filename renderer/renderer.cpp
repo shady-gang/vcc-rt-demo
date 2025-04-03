@@ -90,6 +90,8 @@ RA_FUNCTION vec3 ambient_occlusion(unsigned int* rng, BVH& bvh, const Hit *isect
             ray.dir.x = rx;
             ray.dir.y = ry;
             ray.dir.z = rz;
+            //return ray.dir;
+            ray.origin = ray.origin + ray.dir * epsilon;
             ray.tmax = 1.0e+17f;
 
             Hit occ_hit = { .t = ray.tmax };

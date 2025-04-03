@@ -18,12 +18,12 @@ namespace shady {
 
 bool read_file(const char* filename, size_t* size, char** output);
 
-#include "cunk/graphics.h"
-#include "GLFW/glfw3.h"
-GLFWwindow* gfx_get_glfw_handle(Window*);
 }
 
-#include "renderer/renderer.h"
+#include "imr/imr.h"
+#include "GLFW/glfw3.h"
+
+#include "renderer.h"
 
 #include "model.h"
 #include "bvh_host.h"
@@ -35,8 +35,6 @@ float rng() {
     n = n - floorf(n);
     return n;
 }
-
-void blitImage(Window* window, GfxCtx* ctx, size_t, size_t, uint32_t* image);
 
 Camera camera;
 CameraFreelookState camera_state = {
@@ -93,7 +91,7 @@ bool use_bvh = true;
 RenderMode render_mode = AO;
 
 int max_frames = 0;
-int frame = 0, accum = 0;
+int nframe = 0, accum = 0;
 
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
@@ -119,13 +117,18 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    GfxCtx* gfx_ctx;
     int WIDTH = 832*2, HEIGHT = 640*2;
-    Window* window = gfx_create_window("vcc-rt", WIDTH, HEIGHT, &gfx_ctx);
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Example", nullptr, nullptr);
     if (!window)
         return 0;
 
-    glfwSetKeyCallback(gfx_get_glfw_handle(window), [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+    imr::Context context;
+    imr::Swapchain swapchain(context, window);
+    imr::FpsCounter fps_counter;
+
+    glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             gpu = !gpu;
         }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
@@ -137,12 +140,12 @@ int main(int argc, char** argv) {
     });
 
     shady::RunnerConfig runtime_config = {};
-    runtime_config.use_validation = false;
+    runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = false;
-    compiler_config.per_thread_stack_size = 384;
+    compiler_config.per_thread_stack_size = 328;
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = shd_rn_get_an_device(runner);
     assert(device);
@@ -207,85 +210,110 @@ int main(int argc, char** argv) {
     int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
-    glfwSwapInterval(1);
-    do {
-        int nwidth, nheight;
-        glfwGetWindowSize(gfx_get_glfw_handle(window), &nwidth, &nheight);
-        if (nwidth != WIDTH || nheight != HEIGHT && nwidth * nheight > 0) {
+    //glfwSwapInterval(1);
+    while ((max_frames == 0 || nframe < max_frames) && !glfwWindowShouldClose(window)) {
+        using Frame = imr::Swapchain::Frame;
+        swapchain.beginFrame([&](Frame& frame) {
+            int nwidth = frame.width, nheight = frame.height;
+
             WIDTH = nwidth;
             HEIGHT = nheight;
             fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
-            cpu_fb = static_cast<uint32_t*>(realloc(cpu_fb, fb_size));
-            // reallocate fb
-            shd_rn_destroy_buffer(gpu_fb);
-            gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
-            fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
-        }
-
-        camera_update(gfx_get_glfw_handle(window), &camera_input);
-        if (camera_move_freelook(&camera, &camera_input, &camera_state))
-            accum = 0;
-
-        uint64_t render_time;
-        if (gpu) {
-            std::vector<void*> args;
-            args.push_back(&camera);
-            args.push_back(&WIDTH);
-            args.push_back(&HEIGHT);
-            args.push_back(&fb_gpu_addr);
-            int ntris = model.triangles.size();
-            if (use_bvh)
-                ntris = 0;
-            args.push_back(&ntris);
-            uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
-            args.push_back(&ptr);
-            args.push_back(&bvh.gpu_bvh);
-            args.push_back(&frame);
-            args.push_back(&accum);
-            args.push_back(&render_mode);
-            //BVH* gpu_bvh = bvh.gpu_bvh;
-
-            shady::ExtraKernelOptions launch_options = {
-                .profiled_gpu_time = &render_time,
-            };
-            shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
-            shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
-        } else {
-            auto then = time();
-            #pragma omp parallel for
-            for (int x = 0; x < WIDTH; x++) {
-                for (int y = 0; y < HEIGHT; y++) {
-                    gl_GlobalInvocationID.x = x;
-                    gl_GlobalInvocationID.y = y;
-                    int ntris = model.triangles.size();
-                    if (use_bvh)
-                        ntris = 0;
-                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles.data(), bvh.host_bvh, frame, accum, render_mode);
-                }
+            if (nwidth != WIDTH || nheight != HEIGHT && nwidth * nheight > 0) {
+                cpu_fb = static_cast<uint32_t*>(realloc(cpu_fb, fb_size));
+                // reallocate fb
+                shd_rn_destroy_buffer(gpu_fb);
+                gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
+                fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
             }
+
+            camera_update(window, &camera_input);
+            if (camera_move_freelook(&camera, &camera_input, &camera_state))
+                accum = 0;
+
+            uint64_t render_time;
+            if (gpu) {
+                std::vector<void*> args;
+                args.push_back(&camera);
+                args.push_back(&WIDTH);
+                args.push_back(&HEIGHT);
+                args.push_back(&fb_gpu_addr);
+                int ntris = model.triangles.size();
+                if (use_bvh)
+                    ntris = 0;
+                args.push_back(&ntris);
+                uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
+                args.push_back(&ptr);
+                args.push_back(&bvh.gpu_bvh);
+                args.push_back(&frame);
+                args.push_back(&accum);
+                args.push_back(&render_mode);
+                //BVH* gpu_bvh = bvh.gpu_bvh;
+
+                shady::ExtraKernelOptions launch_options = {
+                    .profiled_gpu_time = &render_time,
+                };
+                shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+                shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+            } else {
+                auto then = time();
+                #pragma omp parallel for
+                for (int x = 0; x < WIDTH; x++) {
+                    #pragma omp simd
+                    for (int y = 0; y < HEIGHT; y++) {
+                        gl_GlobalInvocationID.x = x;
+                        gl_GlobalInvocationID.y = y;
+                        int ntris = model.triangles.size();
+                        if (use_bvh)
+                            ntris = 0;
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles.data(), bvh.host_bvh, nframe, accum, render_mode);
+                    }
+                }
+                auto now = time();
+                render_time = now - then;
+            }
+
+            frames_in_epoch++;
             auto now = time();
-            render_time = now - then;
-        }
+            total_time += render_time;
+            auto delta = now - epoch;
+            if (delta > 1000000000) {
+                assert(frames_in_epoch > 0);
+                auto avg_time = total_time / frames_in_epoch;
+                glfwSetWindowTitle(window, (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames_in_epoch) + "frames.").c_str());
+                frames_in_epoch = 0;
+                total_time = 0;
+                epoch = now;
+            }
 
-        frames_in_epoch++;
-        auto now = time();
-        total_time += render_time;
-        auto delta = now - epoch;
-        if (delta > 1000000000) {
-            assert(frames_in_epoch > 0);
-            auto avg_time = total_time / frames_in_epoch;
-            glfwSetWindowTitle(gfx_get_glfw_handle(window), (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames_in_epoch) + "frames.").c_str());
-            frames_in_epoch = 0;
-            total_time = 0;
-            epoch = now;
-        }
+            // blitImage(window, gfx_ctx, WIDTH, HEIGHT, cpu_fb);
+            //glfwSwapInterval(0);
+            //glfwSwapBuffers(window);
+            glfwPollEvents();
+            nframe++;
+            accum++;
 
-        blitImage(window, gfx_ctx, WIDTH, HEIGHT, cpu_fb);
-        glfwSwapInterval(0);
-        glfwSwapBuffers(gfx_get_glfw_handle(window));
+            VkFence fence;
+            vkCreateFence(context.device, tmp((VkFenceCreateInfo) {
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            }), nullptr, &fence);
+            auto vk_buffer = imr::Buffer(context, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            auto buffer = &vk_buffer;
+
+            uint8_t* mapped_buffer;
+            CHECK_VK(vkMapMemory(context.device, buffer->memory, buffer->memory_offset, buffer->size, 0, (void**) &mapped_buffer), abort());
+            memcpy(mapped_buffer, cpu_fb, fb_size);
+            vkUnmapMemory(context.device, buffer->memory);
+
+            frame.presentFromBuffer(vk_buffer.handle, fence, std::nullopt);
+            vkWaitForFences(context.device, 1, &fence, VK_TRUE, UINT64_MAX);
+            vkDestroyFence(context.device, fence, nullptr);
+            //frame.present(std::nullopt);
+        });
+
+        fps_counter.tick();
+        fps_counter.updateGlfwWindowTitle(window);
         glfwPollEvents();
-        frame++;
-        accum++;
-    } while((max_frames == 0 || frame < max_frames) && !glfwWindowShouldClose(gfx_get_glfw_handle(window)));
+    }
     return 0;
 }
