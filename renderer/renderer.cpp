@@ -133,6 +133,10 @@ RA_FUNCTION vec3 unpack_color(unsigned int packed) {
     return color;
 }
 
+RA_FUNCTION uint32_t& access_buffer(uint32_t* buffer, int x, int y, int width, int height) {
+    return buffer[((height - y) * width + x)];
+}
+
 extern "C" {
 
 #ifdef __SHADY__
@@ -181,11 +185,11 @@ RA_RENDERER_SIGNATURE {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
             if (nearest_hit.t > 0.0f)
                 color = vec3(0.5f) + nearest_hit.n * 0.5f;
-            buf[(y * width + x)] = pack_color(color);
+            access_buffer(buf, x, y, width, height) = pack_color(color);
             break;
         }
         case PRIMARY_HEATMAP: {
-            buf[(y * width + x)] = pack_color(vec3(log2f(iter) / 8.0f));
+            access_buffer(buf, x, y, width, height) = pack_color(vec3(log2f(iter) / 8.0f));
             break;
         }
         case AO: {
@@ -196,9 +200,9 @@ RA_RENDERER_SIGNATURE {
             }
             if (accum > 0) {
                 float f = 0.01f + 1.0f / accum;
-                buf[(y * width + x)] = pack_color(unpack_color(buf[(y * width + x)]) * (1.0f - f) + color * f);
+                access_buffer(buf, x, y, width, height) = pack_color(unpack_color(access_buffer(buf, x, y, width, height)) * (1.0f - f) + color * f);
             } else
-                buf[(y * width + x)] = pack_color(color);
+                access_buffer(buf, x, y, width, height) = pack_color(color);
         }
     }
 }
