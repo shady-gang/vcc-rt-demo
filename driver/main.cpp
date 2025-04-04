@@ -93,6 +93,15 @@ RenderMode render_mode = AO;
 int max_frames = 0;
 int nframe = 0, accum = 0;
 
+template<typename T>
+auto walk_pNext_chain(VkBaseInStructure* s, T t) {
+    if (!s)
+        return;
+    if (s->pNext)
+        walk_pNext_chain<T>((VkBaseInStructure*) s->pNext, t);
+    t(s);
+};
+
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
@@ -124,8 +133,39 @@ int main(int argc, char** argv) {
     if (!window)
         return 0;
 
-    imr::Context context;
-    imr::Swapchain swapchain(context, window);
+    vkb::SystemInfo system_info = vkb::SystemInfo::get_system_info().value();
+    imr::Context context([&](vkb::InstanceBuilder& b) {
+#define E(req, name) \
+        if (req || system_info.is_extension_available("VK_"#name)) { \
+            b.enable_extension("VK_"#name);         \
+        }
+        SHADY_SUPPORTED_INSTANCE_EXTENSIONS(E)
+#undef E
+    });
+
+    shady::ShadyVkrPhysicalDeviceCaps caps;
+    std::optional<vkb::PhysicalDevice> selected_physical_device = std::nullopt;
+    for (auto& physical_device : context.available_devices()) {
+        if (shady::shd_rt_check_physical_device_suitability(physical_device, &caps)) {
+            selected_physical_device = physical_device;
+            break;
+        }
+    }
+    if (!selected_physical_device) {
+        fprintf(stderr, "Failed to pick a suitable physical device.");
+        exit(-1);
+    }
+
+    for (size_t i = 0; i < caps.device_extensions_count; i++) {
+        selected_physical_device->enable_extension_if_present(caps.device_extensions[i]);
+        selected_physical_device->enable_features_if_present(caps.features.base.features);
+        walk_pNext_chain((VkBaseInStructure*) caps.features.base.pNext, [&](VkBaseInStructure* s) {
+            selected_physical_device->enable_extension_features_if_present(s);
+        });
+    }
+
+    imr::Device imr_device(context, *selected_physical_device);
+    imr::Swapchain swapchain(imr_device, window);
     imr::FpsCounter fps_counter;
 
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -146,8 +186,9 @@ int main(int argc, char** argv) {
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = false;
     compiler_config.per_thread_stack_size = 328;
+    shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
-    shady::Device* device = shd_rn_get_an_device(runner);
+    shady::Device* device = shady::shd_rn_open_vkdevice(runner, imr_device.physical_device, imr_device.device);
     assert(device);
 
     std::string files = xstr(RENDERER_LL_FILES);
@@ -254,7 +295,7 @@ int main(int argc, char** argv) {
                     .profiled_gpu_time = &render_time,
                 };
                 shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
-                shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+                //shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
             } else {
                 auto then = time();
                 #pragma omp parallel for
@@ -287,21 +328,20 @@ int main(int argc, char** argv) {
             }
 
             VkFence fence;
-            vkCreateFence(context.device, tmp((VkFenceCreateInfo) {
+            vkCreateFence(imr_device.device, tmp((VkFenceCreateInfo) {
                 .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             }), nullptr, &fence);
-            auto vk_buffer = imr::Buffer(context, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            auto buffer = &vk_buffer;
 
-            uint8_t* mapped_buffer;
-            CHECK_VK(vkMapMemory(context.device, buffer->memory, buffer->memory_offset, buffer->size, 0, (void**) &mapped_buffer), abort());
-            memcpy(mapped_buffer, cpu_fb, fb_size);
-            vkUnmapMemory(context.device, buffer->memory);
-
-            frame.presentFromBuffer(vk_buffer.handle, fence, std::nullopt);
-            vkWaitForFences(context.device, 1, &fence, VK_TRUE, UINT64_MAX);
-            vkDestroyFence(context.device, fence, nullptr);
-            //frame.present(std::nullopt);
+            //auto vk_buffer = imr::Buffer(context, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            //auto buffer = &vk_buffer;
+            //uint8_t* mapped_buffer;
+            //CHECK_VK(vkMapMemory(context.device, buffer->memory, buffer->memory_offset, buffer->size, 0, (void**) &mapped_buffer), abort());
+            //memcpy(mapped_buffer, cpu_fb, fb_size);
+            //vkUnmapMemory(context.device, buffer->memory);
+            //frame.presentFromBuffer(vk_buffer.handle, fence, std::nullopt);
+            frame.presentFromBuffer(shady::shd_rn_get_vkbuffer(gpu_fb), fence, std::nullopt);
+            vkWaitForFences(imr_device.device, 1, &fence, VK_TRUE, UINT64_MAX);
+            vkDestroyFence(imr_device.device, fence, nullptr);
         });
 
         nframe++;
