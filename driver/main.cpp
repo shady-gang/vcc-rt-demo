@@ -311,5 +311,11 @@ int main(int argc, char** argv) {
         fps_counter.updateGlfwWindowTitle(window);
         glfwPollEvents();
     }
+
+    shady::shd_rn_destroy_buffer(gpu_fb);
+    shady::shd_rn_destroy_buffer(gpu_boxes);
+    shady::shd_rn_destroy_buffer(gpu_spheres);
+    shady::shd_rn_shutdown(runner);
+
     return 0;
 }

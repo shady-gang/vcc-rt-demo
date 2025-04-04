@@ -4,6 +4,7 @@
 
 struct BVHHost {
     BVHHost(Model&, shady::Device*);
+    ~BVHHost();
 
     std::vector<BVH::Node> nodes;
 #ifdef BVH_REORDER_TRIS

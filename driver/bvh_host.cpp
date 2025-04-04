@@ -132,3 +132,12 @@ BVHHost::BVHHost(Model& model, Device* device) {
     int c = count_tris(&host_bvh, host_bvh.root);
     assert(c == model.triangles.size());
 }
+
+BVHHost::~BVHHost() {
+#ifdef BVH_REORDER_TRIS
+    shd_rn_destroy_buffer(gpu_reordered_tris);
+#else
+    shd_rn_destroy_buffer(gpu_indices);
+#endif
+    shd_rn_destroy_buffer(gpu_nodes);
+}
