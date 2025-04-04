@@ -7,10 +7,14 @@
 #include <cstdint>
 #include <cstring>
 
+#include "imr/imr.h"
+#include "GLFW/glfw3.h"
+
 extern "C" {
 namespace shady {
 
 #include "shady/runner/runner.h"
+#include "shady/runner/vulkan.h"
 #include "shady/driver.h"
 #include "shady/ir/module.h"
 
@@ -19,9 +23,6 @@ namespace shady {
 bool read_file(const char* filename, size_t* size, char** output);
 
 }
-
-#include "imr/imr.h"
-#include "GLFW/glfw3.h"
 
 #include "renderer.h"
 
@@ -78,7 +79,6 @@ std::vector<std::string> split(const std::string& str, const std::string& delim)
 }
 
 void camera_update(GLFWwindow*, CameraInput* input);
-
 
 extern "C" {
 
