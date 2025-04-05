@@ -24,12 +24,14 @@ static inline Vec3 nasl2bvh(vec3 v) {
 
 using namespace shady;
 
-static int count_tris(BVH* bvh, int i) {
+static int count_tris(BVH* bvh, int i, int* maxdepth, int depth = 1) {
+    if (depth > *maxdepth)
+        *maxdepth = depth;
     BVH::Node* n = &bvh->nodes[i];
     if (n->is_leaf)
         return n->leaf.count;
     else
-        return count_tris(bvh, n->inner.children[0]) + count_tris(bvh, n->inner.children[1]);
+        return count_tris(bvh, n->inner.children[0], maxdepth, depth + 1) + count_tris(bvh, n->inner.children[1], maxdepth, depth + 1);
 }
 
 BVHHost::BVHHost(Model& model, Device* device) {
@@ -58,6 +60,8 @@ BVHHost::BVHHost(Model& model, Device* device) {
 
     typename bvh::v2::DefaultBuilder<BNode>::Config config {  };
     config.quality = bvh::v2::DefaultBuilder<BNode>::Quality::High;
+    config.min_leaf_size = 4;
+    config.max_leaf_size = 8;
     auto bvh = bvh::v2::DefaultBuilder<BNode>::build(thread_pool, bboxes, centers, config);
 
     std::vector<BVH::Node> tmp_nodes;
@@ -129,7 +133,9 @@ BVHHost::BVHHost(Model& model, Device* device) {
     gpu_bvh.indices = reinterpret_cast<int*>(shd_rn_get_buffer_device_pointer(gpu_indices));
 #endif
 
-    int c = count_tris(&host_bvh, host_bvh.root);
+    int maxdepth = 0;
+    int c = count_tris(&host_bvh, host_bvh.root, &maxdepth);
+    printf("BVH is %d nodes long and at most %d nodes deep.\n", (int) nodes.size(), maxdepth);
     assert(c == model.triangles.size());
 }
 
