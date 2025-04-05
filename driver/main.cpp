@@ -87,6 +87,7 @@ RA_RENDERER_SIGNATURE;
 }
 
 bool gpu = true;
+bool cuda = false;
 bool use_bvh = true;
 RenderMode render_mode = AO;
 
@@ -112,6 +113,10 @@ int main(int argc, char** argv) {
         }
         if (strcmp(argv[i], "--no-bvh") == 0) {
             use_bvh = false;
+            continue;
+        }
+        if (strcmp(argv[i], "--cuda") == 0) {
+            cuda = true;
             continue;
         }
         if (strcmp(argv[i], "--speed") == 0) {
@@ -171,6 +176,7 @@ int main(int argc, char** argv) {
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             gpu = !gpu;
+            accum = 0;
         }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
             use_bvh = !use_bvh;
         }if (action == GLFW_PRESS && key == GLFW_KEY_H) {
@@ -186,9 +192,25 @@ int main(int argc, char** argv) {
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = false;
     compiler_config.per_thread_stack_size = 328;
+    //compiler_config.per_thread_stack_size = 1024;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
-    shady::Device* device = shady::shd_rn_open_vkdevice(runner, imr_device.physical_device, imr_device.device);
+    shady::Device* device = nullptr;
+    if (cuda) {
+        for (size_t i = 0; i < shd_rn_device_count(runner); i++) {
+            shady::Device* candidate = shd_rn_get_device(runner, i);
+            if (shd_rn_get_device_backend(candidate) == shady::CUDARuntimeBackend) {
+                device = candidate;
+                break;
+            }
+        }
+        if (!device) {
+            fprintf(stderr, "Failed to find a CUDA shady device.\n");
+            exit(-1);
+        }
+    } else {
+        device = shady::shd_rn_open_vkdevice(runner, imr_device.physical_device, imr_device.device);
+    }
     assert(device);
 
     std::string files = xstr(RENDERER_LL_FILES);
@@ -251,6 +273,9 @@ int main(int argc, char** argv) {
     int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
+    // if we're not using the presenting Vulkan device to render, we need to upload the frame to it.
+    std::unique_ptr<imr::Buffer> fallback_buffer;
+
     //glfwSwapInterval(1);
     while ((max_frames == 0 || nframe < max_frames) && !glfwWindowShouldClose(window)) {
         using Frame = imr::Swapchain::Frame;
@@ -295,7 +320,6 @@ int main(int argc, char** argv) {
                     .profiled_gpu_time = &render_time,
                 };
                 shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
-                //shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
             } else {
                 auto then = time();
                 #pragma omp parallel for
@@ -331,15 +355,19 @@ int main(int argc, char** argv) {
             vkCreateFence(imr_device.device, tmp((VkFenceCreateInfo) {
                 .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             }), nullptr, &fence);
-
-            //auto vk_buffer = imr::Buffer(context, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            //auto buffer = &vk_buffer;
-            //uint8_t* mapped_buffer;
-            //CHECK_VK(vkMapMemory(context.device, buffer->memory, buffer->memory_offset, buffer->size, 0, (void**) &mapped_buffer), abort());
-            //memcpy(mapped_buffer, cpu_fb, fb_size);
-            //vkUnmapMemory(context.device, buffer->memory);
-            //frame.presentFromBuffer(vk_buffer.handle, fence, std::nullopt);
-            frame.presentFromBuffer(shady::shd_rn_get_vkbuffer(gpu_fb), fence, std::nullopt);
+            if (!cuda && gpu) {
+                frame.presentFromBuffer(shady::shd_rn_get_vkbuffer(gpu_fb), fence, std::nullopt);
+            } else {
+                if (gpu)
+                    shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+                if (!fallback_buffer)
+                    fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                uint8_t* mapped_buffer;
+                CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
+                memcpy(mapped_buffer, cpu_fb, fb_size);
+                vkUnmapMemory(imr_device.device, fallback_buffer->memory);
+                frame.presentFromBuffer(fallback_buffer->handle, fence, std::nullopt);
+            }
             vkWaitForFences(imr_device.device, 1, &fence, VK_TRUE, UINT64_MAX);
             vkDestroyFence(imr_device.device, fence, nullptr);
         });
