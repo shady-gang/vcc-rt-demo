@@ -234,37 +234,14 @@ int main(int argc, char** argv) {
 
     int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
     uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
+    int film_size = sizeof(float) * WIDTH * HEIGHT * 3;
+    float* cpu_film = (float*) malloc(film_size);
 
     shady::Buffer* gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
     uint64_t fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
 
-    std::vector<Sphere> cpu_spheres;
-    for (size_t i = 0; i < 1; i++) {
-        float spread = 200;
-        Sphere s = {{rng() * spread - spread / 2, rng() * spread - spread / 2, rng() * spread - spread / 2}, rng() * 5 + 2};
-        cpu_spheres.emplace_back(s);
-    }
-
-    shady::Buffer* gpu_spheres = shd_rn_allocate_buffer_device(device, cpu_spheres.size() * sizeof(Sphere));
-    uint64_t spheres_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_spheres);
-    shd_rn_copy_to_buffer(gpu_spheres, 0, cpu_spheres.data(), cpu_spheres.size() * sizeof(Sphere));
-
-    std::vector<BBox> cpu_boxes;
-    for (size_t i = 0; i < 1; i++) {
-        float spread = 200;
-        vec3 min = {rng() * spread - spread / 2, rng() * spread - spread / 2, rng() * spread - spread / 2};
-        BBox b;
-        b.min = min;
-        min[0] += 1;
-        min[1] += 1;
-        min[2] += 1;
-        b.max = min;
-        cpu_boxes.emplace_back(b);
-    }
-
-    shady::Buffer* gpu_boxes = shd_rn_allocate_buffer_device(device, cpu_boxes.size() * sizeof(BBox));
-    uint64_t boxes_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_boxes);
-    shd_rn_copy_to_buffer(gpu_boxes, 0, cpu_boxes.data(), cpu_boxes.size() * sizeof(BBox));
+    shady::Buffer* gpu_film = shd_rn_allocate_buffer_device(device, film_size);
+    uint64_t film_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_film);
 
     Model model(model_filename, device);
     BVHHost bvh(model, device);
@@ -304,6 +281,7 @@ int main(int argc, char** argv) {
                 args.push_back(&WIDTH);
                 args.push_back(&HEIGHT);
                 args.push_back(&fb_gpu_addr);
+                args.push_back(&film_gpu_addr);
                 int ntris = model.triangles.size();
                 if (use_bvh)
                     ntris = 0;
@@ -331,7 +309,7 @@ int main(int argc, char** argv) {
                         int ntris = model.triangles.size();
                         if (use_bvh)
                             ntris = 0;
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, ntris, model.triangles.data(), bvh.host_bvh, nframe, accum, render_mode);
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), bvh.host_bvh, nframe, accum, render_mode);
                     }
                 }
                 auto now = time();
@@ -381,8 +359,6 @@ int main(int argc, char** argv) {
     }
 
     shady::shd_rn_destroy_buffer(gpu_fb);
-    shady::shd_rn_destroy_buffer(gpu_boxes);
-    shady::shd_rn_destroy_buffer(gpu_spheres);
     shady::shd_rn_shutdown(runner);
 
     return 0;

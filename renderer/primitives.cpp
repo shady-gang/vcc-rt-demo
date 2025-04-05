@@ -10,8 +10,8 @@ RA_METHOD bool Sphere::intersect(Ray r, Hit& hit) {
         float t = -b - sqrtf(d);
         if (t > r.tmin && t < r.tmax) {
             hit.t = t;
-            hit.p = r.origin + r.dir * t;
-            hit.n = normalize(hit.p - this->center);
+            vec3 p = r.origin + r.dir * t;
+            hit.n = normalize(p - this->center);
             return true;
         }
     }
@@ -78,12 +78,12 @@ RA_METHOD bool BBox::intersect(Ray r, vec3 ray_inv_dir, Hit& hit) {
     if (t0 < t1) {
         if (t1 < r.tmin || t0 > r.tmax)
             return false;
-        vec3 p = r.origin + r.dir * t0;
+        //vec3 p = r.origin + r.dir * t0;
         vec3 n(0.0f);
         n.arr[axis] = -sign(r.dir.arr[axis]);
 
         hit.t = t0;
-        hit.p = p;
+        //hit.p = p;
         hit.n = n;
         return true;
     }
@@ -140,7 +140,9 @@ RA_METHOD bool Triangle::intersect(Ray ray, Hit& hit) {
         return false;
 
     hit.t = t;
-    hit.p = interpolateBarycentric<vec3>({u, v}, v0, v1, v2);
+    //hit.p = interpolateBarycentric<vec3>({u, v}, v0, v1, v2);
+    hit.u = u;
+    hit.v = v;
     hit.n = normalize(edge1.cross(edge2));
     return true;
 

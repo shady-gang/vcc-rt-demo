@@ -19,6 +19,6 @@ enum RenderMode {
     MAX_RENDER_MODE = AO,
 };
 
-#define RA_RENDERER_SIGNATURE void render_a_pixel(Camera cam, int width, int height, uint32_t* buf, int ntris, Triangle* triangles, BVH bvh, unsigned frame, unsigned accum, RenderMode mode)
+#define RA_RENDERER_SIGNATURE void render_a_pixel(Camera cam, int width, int height, uint32_t* fb, float* film, int ntris, Triangle* triangles, BVH bvh, unsigned frame, unsigned accum, RenderMode mode)
 
 #endif

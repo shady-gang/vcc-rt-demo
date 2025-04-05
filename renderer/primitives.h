@@ -11,7 +11,11 @@ struct Ray {
 
 struct Hit {
     float t;
-    vec3 p, n;
+    // pls pack well
+    // vec3 p;
+    float u;
+    vec3 n;
+    float v;
 };
 
 struct Sphere {
