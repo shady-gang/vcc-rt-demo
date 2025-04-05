@@ -134,7 +134,7 @@ RA_FUNCTION vec3 unpack_color(unsigned int packed) {
 }
 
 RA_FUNCTION uint32_t& access_buffer(uint32_t* buffer, int x, int y, int width, int height) {
-    return buffer[((height - y) * width + x)];
+    return buffer[((height - 1 - y) * width + x)];
 }
 
 extern "C" {
