@@ -206,26 +206,8 @@ RA_FUNCTION uint32_t pack_color(vec3 color) {
     color.x = sqrtf(color.x);
     color.y = sqrtf(color.y);
     color.z = sqrtf(color.z);
+    color = color.zyx;
     return (((int) (color.z * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.x * 255) & 0xFF);
-}
-
-RA_FUNCTION vec3 encode_color(vec3 color) {
-    color.x = sqrtf(color.x);
-    color.y = sqrtf(color.y);
-    color.z = sqrtf(color.z);
-    color = clamp(color, vec3(0.0f), vec3(1.0f));
-    return color;
-}
-
-RA_FUNCTION vec3 unpack_color(unsigned int packed) {
-    unsigned r = packed & 0xFF;
-    unsigned g = (packed >> 8) & 0xFF;
-    unsigned b = (packed >> 16) & 0xFF;
-    vec3 color((float)r/255.f,(float)g/255.f,(float)b/255.f);
-    color.x = powf(color.x, 2.0f);
-    color.y = powf(color.y, 2.0f);
-    color.z = powf(color.z, 2.0f);
-    return color;
 }
 
 RA_FUNCTION uint32_t& access_frame_buffer(uint32_t* buffer, int x, int y, int width, int height) {
@@ -320,7 +302,7 @@ RA_RENDERER_SIGNATURE {
             }
             film_data = film_data + color;
             write_film(film, x, y, width, height, film_data);
-            access_frame_buffer(fb, x, y, width, height) = pack_color(0.1f * film_data / (accum + 1));
+            access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
         }
     }
 }
