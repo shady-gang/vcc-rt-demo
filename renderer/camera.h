@@ -35,6 +35,6 @@ typedef struct {
     } keys;
 } CameraInput;
 
-RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*);
+RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
 #endif

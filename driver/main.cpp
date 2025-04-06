@@ -39,8 +39,7 @@ float rng() {
 
 Camera camera;
 CameraFreelookState camera_state = {
-    //.fly_speed = 0.1f,
-    .fly_speed = 10.0f,
+    .fly_speed = 1.0f,
     .mouse_sensitivity = 1.0,
 };
 CameraInput camera_input;
@@ -247,11 +246,14 @@ int main(int argc, char** argv) {
     BVHHost bvh(model, device);
 
     auto epoch = time();
+    auto prev_frame = epoch;
     int frames_in_epoch = 0;
     uint64_t total_time = 0;
 
     // if we're not using the presenting Vulkan device to render, we need to upload the frame to it.
     std::unique_ptr<imr::Buffer> fallback_buffer;
+
+    float delta = 0;
 
     //glfwSwapInterval(1);
     while ((max_frames == 0 || nframe < max_frames) && !glfwWindowShouldClose(window)) {
@@ -271,7 +273,7 @@ int main(int argc, char** argv) {
             }
 
             camera_update(window, &camera_input);
-            if (camera_move_freelook(&camera, &camera_input, &camera_state))
+            if (camera_move_freelook(&camera, &camera_input, &camera_state, delta))
                 accum = 0;
 
             uint64_t render_time;
@@ -319,8 +321,8 @@ int main(int argc, char** argv) {
             frames_in_epoch++;
             auto now = time();
             total_time += render_time;
-            auto delta = now - epoch;
-            if (delta > 1000000000) {
+            auto delta_ns = now - epoch;
+            if (delta_ns > 1000000000) {
                 assert(frames_in_epoch > 0);
                 auto avg_time = total_time / frames_in_epoch;
                 glfwSetWindowTitle(window, (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames_in_epoch) + "frames.").c_str());
@@ -328,6 +330,8 @@ int main(int argc, char** argv) {
                 total_time = 0;
                 epoch = now;
             }
+            delta = (float) ((now - prev_frame) / 1000000) / 1000.0f;
+            prev_frame = now;
 
             VkFence fence;
             vkCreateFence(imr_device.device, tmp((VkFenceCreateInfo) {
