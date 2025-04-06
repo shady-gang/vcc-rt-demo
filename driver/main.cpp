@@ -122,6 +122,17 @@ int main(int argc, char** argv) {
             camera_state.fly_speed = strtof(argv[++i], nullptr);
             continue;
         }
+        if (strcmp(argv[i], "--position") == 0) {
+            camera.position.x = strtof(argv[++i], nullptr);
+            camera.position.y = strtof(argv[++i], nullptr);
+            camera.position.z = strtof(argv[++i], nullptr);
+            continue;
+        }
+        if (strcmp(argv[i], "--rotation") == 0) {
+            camera.rotation.yaw = strtof(argv[++i], nullptr);
+            camera.rotation.pitch = strtof(argv[++i], nullptr);
+            continue;
+        }
         model_filename = argv[i];
     }
 
@@ -176,11 +187,13 @@ int main(int argc, char** argv) {
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             gpu = !gpu;
             accum = 0;
-        }if (action == GLFW_PRESS && key == GLFW_KEY_B) {
+        } if (action == GLFW_PRESS && key == GLFW_KEY_B) {
             use_bvh = !use_bvh;
-        }if (action == GLFW_PRESS && key == GLFW_KEY_H) {
+        } if (action == GLFW_PRESS && key == GLFW_KEY_H) {
             render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
             accum = 0;
+        } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
+            printf("--position %f %f %f --rotation %f %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch);
         }
     });
 
