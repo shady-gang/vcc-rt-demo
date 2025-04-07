@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = false;
-    compiler_config.per_thread_stack_size = 328;
+    compiler_config.per_thread_stack_size = 440;
     //compiler_config.per_thread_stack_size = 1024;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
