@@ -4,7 +4,6 @@
 #include "ra_math.h"
 using namespace nasl;
 
-//#include <stdint.h>
 typedef unsigned int uint32_t;
 
 #include "camera.h"

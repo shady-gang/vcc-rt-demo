@@ -105,6 +105,8 @@ auto walk_pNext_chain(VkBaseInStructure* s, T t) {
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
+    int WIDTH = 832*2, HEIGHT = 640*2;
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
             max_frames = atoi(argv[++i]);
@@ -133,6 +135,11 @@ int main(int argc, char** argv) {
             camera.rotation.pitch = strtof(argv[++i], nullptr);
             continue;
         }
+        if (strcmp(argv[i], "--size") == 0) {
+            WIDTH = strtol(argv[++i], nullptr, 10);
+            HEIGHT = strtol(argv[++i], nullptr, 10);
+            continue;
+        }
         model_filename = argv[i];
     }
 
@@ -141,7 +148,6 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    int WIDTH = 832*2, HEIGHT = 640*2;
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Example", nullptr, nullptr);
@@ -202,9 +208,10 @@ int main(int argc, char** argv) {
     runtime_config.dump_spv = true;
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
-    compiler_config.dynamic_scheduling = false;
-    compiler_config.per_thread_stack_size = 440;
-    //compiler_config.per_thread_stack_size = 1024;
+    compiler_config.dynamic_scheduling = true;
+    //compiler_config.per_thread_stack_size = 440;
+    compiler_config.per_thread_stack_size = 1024;
+    compiler_config.per_thread_stack_size = 4096;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -225,6 +232,8 @@ int main(int argc, char** argv) {
     }
     assert(device);
 
+    shady::TargetConfig target_config = shd_rn_get_device_target_config(device);
+
     std::string files = xstr(RENDERER_LL_FILES);
     shady::Module* mod = nullptr;
     for (auto& file : split(files, ":")) {
@@ -234,7 +243,7 @@ int main(int argc, char** argv) {
         assert(ok);
 
         shady::Module* m;
-        shd_driver_load_source_file(&compiler_config, shady::SrcLLVM, size, src, "vcc_rt_demo", &m);
+        shd_driver_load_source_file(&compiler_config, &target_config, shady::SrcLLVM, size, src, "ra", &m);
         if (mod == nullptr)
             mod = m;
         else {

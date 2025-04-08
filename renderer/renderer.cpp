@@ -132,66 +132,74 @@ orthoBasis(vec3 *basis, vec3 n)
     basis[1] = normalize(basis[1]);
 }
 
-#define NAO_SAMPLES 1
+RA_FUNCTION vec3 pathtrace1(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
+    vec3 lo = 0.0f;
 
-RA_FUNCTION vec3 ambient_occlusion(unsigned int* rng, BVH& bvh, Ray prev_ray, const Hit *isect) {
-    int    i, j;
-    int    ntheta = NAO_SAMPLES;
-    int    nphi   = NAO_SAMPLES;
-    float eps = 0.0001f;
+    if (path_len > 1)
+        return vec3(0);
 
-    vec3 p;
+    int dc;
+    Hit hit { .t = ray.tmax };
+    if (bvh.intersect(ray, hit, &dc)) {
+        /*vec3 p = ray.origin + ray.dir * hit.t + hit.n * epsilon;
+        vec3 basis[3];
+        orthoBasis(basis, hit.n);
 
-    //p.x = ray_origin.x * isect->t + eps * isect->n.x;
-    //p.y = ray_origin.y * isect->t + eps * isect->n.y;
-    //p.z = ray_origin.z * isect->t + eps * isect->n.z;
+        Ray bounced_ray = { .origin = p };
+        bounced_ray.origin = p;
+        // local -> global
+        float u = randf(rng);
+        auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
+        float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
+        float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
+        float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
+        bounced_ray.dir.x = rx;
+        bounced_ray.dir.y = ry;
+        bounced_ray.dir.z = rz;
 
-    p = prev_ray.origin + prev_ray.dir * isect->t + isect->n * epsilon;
+        bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
+        bounced_ray.tmax = 1.0e+17f;
 
-    vec3 basis[3];
-    orthoBasis(basis, isect->n);
+        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);*/
+    } else
+        lo = lo + vec3(1.0f) / pdf;
 
-    float occlusion = 0.0f;
+    return vec3(lo);
+}
 
-    for (j = 0; j < ntheta; j++) {
-        for (i = 0; i < nphi; i++) {
-            float theta = sqrtf(randf(rng));
-            float phi   = 2.0f * M_PI * randf(rng);
+RA_FUNCTION vec3 pathtrace(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
+    vec3 lo = 0.0f;
 
-            Ray ray = { .origin = p };
-            ray.origin = p;
-            //float x = cosf(phi) * theta;
-            //float y = sinf(phi) * theta;
-            //float z = sqrtf(1.0f - theta * theta);
-            // local -> global
-            float u = randf(rng);
-            auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
-            float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
-            float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
-            float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
-            ray.dir.x = rx;
-            ray.dir.y = ry;
-            ray.dir.z = rz;
+    if (path_len > 2)
+        return vec3(0);
 
-            //ray.dir = -sample_dir.dir;
+    int dc;
+    Hit hit { .t = ray.tmax };
+    if (bvh.intersect(ray, hit, &dc)) {
+        vec3 p = ray.origin + ray.dir * hit.t + hit.n * epsilon;
+        vec3 basis[3];
+        orthoBasis(basis, hit.n);
 
-            //return ray.dir;
-            ray.origin = ray.origin + ray.dir * epsilon;
-            ray.tmax = 1.0e+17f;
+        Ray bounced_ray = { .origin = p };
+        bounced_ray.origin = p;
+        // local -> global
+        float u = randf(rng);
+        auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
+        float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
+        float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
+        float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
+        bounced_ray.dir.x = rx;
+        bounced_ray.dir.y = ry;
+        bounced_ray.dir.z = rz;
 
-            //return ray.dir;
+        bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
+        bounced_ray.tmax = 1.0e+17f;
 
-            Hit occ_hit = { .t = ray.tmax };
+        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);
+    } else
+        lo = lo + vec3(1.0f) / pdf;
 
-            int dc;
-            if (!bvh.intersect(ray, occ_hit, &dc))
-                occlusion += 1.0f / sample_dir.pdf;
-        }
-    }
-
-    //occlusion = (ntheta * nphi - occlusion) / (float)(ntheta * nphi);
-
-    return vec3(occlusion);
+    return vec3(lo);
 }
 
 RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
@@ -255,45 +263,38 @@ RA_RENDERER_SIGNATURE {
     float dx = (x / (float) width) * 2.0f - 1;
     float dy = (y / (float) height) * 2.0f - 1;
     vec3 origin = cam.position;
+
     Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))), 0, 99999 };
-
-    vec3 ray_inv_dir = vec3(1.0f) / r.dir;
-
-    Hit nearest_hit = { r.tmin };
-    int iter;
-
-    if (ntris > 0) {
-        for (int i = 0; i < ntris; i++) {
-            Triangle& b = (triangles)[i];
-            b.intersect(r, nearest_hit);
-        }
-    } else {
-        // BVH shizzle
-        bvh.intersect(r, nearest_hit, &iter);
-    }
 
     switch (mode) {
         case PRIMARY: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
+
+            Hit nearest_hit = { r.tmin };
+            int iter;
+            bvh.intersect(r, nearest_hit, &iter);
+
             if (nearest_hit.t > 0.0f)
                 color = vec3(0.5f) + nearest_hit.n * 0.5f;
             access_frame_buffer(fb, x, y, width, height) = pack_color(color);
             break;
         }
         case PRIMARY_HEATMAP: {
+            Hit nearest_hit = { r.tmin };
+            int iter;
+            bvh.intersect(r, nearest_hit, &iter);
             access_frame_buffer(fb, x, y, width, height) = pack_color(vec3(log2f(iter) / 8.0f));
             break;
         }
         case AO: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            if (nearest_hit.t > 0.0f) {
-                uint32_t rng = 0x811C9DC5;
-                rng = fnv_hash(rng, accum);
-                rng = fnv_hash(rng, x);
-                rng = fnv_hash(rng, y);
-                //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
-                color = ambient_occlusion(&rng, bvh, r, &nearest_hit);
-            }
+            uint32_t rng = 0x811C9DC5;
+            rng = fnv_hash(rng, accum);
+            rng = fnv_hash(rng, x);
+            rng = fnv_hash(rng, y);
+            //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
+            color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f), vec3(0.0), vec3(9999.0f));
+
             vec3 film_data = vec3(0);
             if (accum > 0) {
                 film_data = read_film(film, x, y, width, height);

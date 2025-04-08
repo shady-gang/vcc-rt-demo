@@ -24,7 +24,7 @@ static float fmaf(float, float, float) __asm__("shady::pure_op::GLSL.std.450::50
 
 typedef long int size_t;
 
-#define RA_FUNCTION
+#define RA_FUNCTION static
 #define RA_METHOD
 #define RA_CONSTANT static
 #elif __CUDACC__
