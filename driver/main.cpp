@@ -116,6 +116,10 @@ int main(int argc, char** argv) {
             use_bvh = false;
             continue;
         }
+        if (strcmp(argv[i], "--cpu") == 0) {
+            gpu = false;
+            continue;
+        }
         if (strcmp(argv[i], "--cuda") == 0) {
             cuda = true;
             continue;
