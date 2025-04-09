@@ -17,7 +17,7 @@ RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
 }
 
 // FNV hash function
-auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
+RA_FUNCTION auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
     h = (h * 16777619u) ^ ( d           & 0xFFu);
     h = (h * 16777619u) ^ ((d >>  8u) & 0xFFu);
     h = (h * 16777619u) ^ ((d >> 16u) & 0xFFu);
@@ -132,41 +132,6 @@ orthoBasis(vec3 *basis, vec3 n)
     basis[1] = normalize(basis[1]);
 }
 
-RA_FUNCTION vec3 pathtrace1(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
-    vec3 lo = 0.0f;
-
-    if (path_len > 1)
-        return vec3(0);
-
-    int dc;
-    Hit hit { .t = ray.tmax };
-    if (bvh.intersect(ray, hit, &dc)) {
-        /*vec3 p = ray.origin + ray.dir * hit.t + hit.n * epsilon;
-        vec3 basis[3];
-        orthoBasis(basis, hit.n);
-
-        Ray bounced_ray = { .origin = p };
-        bounced_ray.origin = p;
-        // local -> global
-        float u = randf(rng);
-        auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
-        float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
-        float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
-        float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
-        bounced_ray.dir.x = rx;
-        bounced_ray.dir.y = ry;
-        bounced_ray.dir.z = rz;
-
-        bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
-        bounced_ray.tmax = 1.0e+17f;
-
-        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);*/
-    } else
-        lo = lo + vec3(1.0f) / pdf;
-
-    return vec3(lo);
-}
-
 RA_FUNCTION vec3 pathtrace(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
     vec3 lo = 0.0f;
 
@@ -195,11 +160,11 @@ RA_FUNCTION vec3 pathtrace(unsigned int* rng, BVH& bvh, Ray ray, int path_len, v
         bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
         bounced_ray.tmax = 1.0e+17f;
 
-        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);
+        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf) * sample_dir.dir.z;
     } else
         lo = lo + vec3(1.0f) / pdf;
 
-    return vec3(lo);
+    return lo;
 }
 
 RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
@@ -292,14 +257,11 @@ RA_RENDERER_SIGNATURE {
             rng = fnv_hash(rng, accum);
             rng = fnv_hash(rng, x);
             rng = fnv_hash(rng, y);
-            //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
             color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
                 film_data = read_film(film, x, y, width, height);
-                // float f = 0.01f + 1.0f / accum;
-                // access_buffer(buf, x, y, width, height) = pack_color(unpack_color(access_buffer(buf, x, y, width, height)) * (1.0f - f) + color * f);
             }
             film_data = film_data + color;
             write_film(film, x, y, width, height, film_data);
