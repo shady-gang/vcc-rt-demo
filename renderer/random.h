@@ -21,7 +21,7 @@ RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
 }
 
 // FNV hash function
-auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
+RA_FUNCTION auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
     h = (h * 16777619u) ^ ( d           & 0xFFu);
     h = (h * 16777619u) ^ ((d >>  8u) & 0xFFu);
     h = (h * 16777619u) ^ ((d >> 16u) & 0xFFu);

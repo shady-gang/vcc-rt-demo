@@ -4,7 +4,7 @@
 #include "ra_math.h"
 using namespace nasl;
 
-RA_METHOD vec3 color_palette(int i) {
+RA_FUNCTION vec3 color_palette(int i) {
     /*static*/ const vec3 palette[] = { 
         vec3(0.450000, 0.376630, 0.112500),
         vec3(0.112500, 0.450000, 0.405978),
@@ -34,7 +34,7 @@ RA_METHOD vec3 color_palette(int i) {
     return palette[i%23];
 }
 
-RA_METHOD vec3 color_normal(vec3 normal) {
+RA_FUNCTION vec3 color_normal(vec3 normal) {
     return vec3(0.5f) + normal * 0.5f;
 }
 

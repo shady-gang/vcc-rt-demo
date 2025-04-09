@@ -38,7 +38,7 @@ RA_FUNCTION vec3 pathtrace1(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3
     } else
         lo = lo + vec3(PTEnvMap) / pdf;
 
-    return vec3(lo);
+    return lo;
 }
 
 RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf, int max_depth, Material* materials) {
@@ -72,5 +72,5 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 
     } else
         lo = lo + vec3(PTEnvMap) / pdf;
 
-    return vec3(lo);
+    return lo;
 }

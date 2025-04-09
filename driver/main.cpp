@@ -206,9 +206,9 @@ int main(int argc, char** argv) {
     shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
-    //compiler_config.per_thread_stack_size = 440;
-    compiler_config.per_thread_stack_size = 1024;
-    compiler_config.per_thread_stack_size = 4096;
+    //compiler_config.per_thread_stack_size = 512;
+    //compiler_config.per_thread_stack_size = 1024;
+    compiler_config.per_thread_stack_size = 1564;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -250,16 +250,11 @@ int main(int argc, char** argv) {
     }
     shady::Program* program = shd_rn_new_program_from_module(runner, &compiler_config, mod);
 
-    int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
-    uint32_t* cpu_fb = (uint32_t *) malloc(fb_size);
-    int film_size = sizeof(float) * WIDTH * HEIGHT * 3;
-    float* cpu_film = (float*) malloc(film_size);
-
-    shady::Buffer* gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
-    uint64_t fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
-
-    shady::Buffer* gpu_film = shd_rn_allocate_buffer_device(device, film_size);
-    uint64_t film_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_film);
+    uint32_t* cpu_fb = nullptr;
+    float* cpu_film = nullptr;
+    shady::Buffer* gpu_fb = nullptr;
+    shady::Buffer* gpu_film = nullptr;
+    uint64_t fb_gpu_addr, film_gpu_addr;
 
     Model model(model_filename, device);
     BVHHost bvh(model, device);
@@ -304,15 +299,28 @@ int main(int argc, char** argv) {
         swapchain.beginFrame([&](Frame& frame) {
             int nwidth = frame.width, nheight = frame.height;
 
-            WIDTH = nwidth;
-            HEIGHT = nheight;
-            fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
-            if (nwidth != WIDTH || nheight != HEIGHT && nwidth * nheight > 0) {
-                cpu_fb = static_cast<uint32_t*>(realloc(cpu_fb, fb_size));
+            int fb_size = sizeof(uint32_t) * nwidth * nheight;
+            int film_size = sizeof(float) * nwidth * nheight * 3;
+            if (!cpu_fb || (nwidth != WIDTH || nheight != HEIGHT) && nwidth * nheight > 0) {
+                WIDTH = nwidth;
+                HEIGHT = nheight;
+                free(cpu_fb);
+                free(cpu_film);
+                cpu_fb = static_cast<uint32_t*>(malloc(fb_size));
+                cpu_film = (float*) malloc(film_size);
                 // reallocate fb
-                shd_rn_destroy_buffer(gpu_fb);
+                if (gpu_fb)
+                    shd_rn_destroy_buffer(gpu_fb);
                 gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
                 fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
+
+                if (gpu_film)
+                    shd_rn_destroy_buffer(gpu_film);
+                gpu_film = shd_rn_allocate_buffer_device(device, film_size);
+                film_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_film);
+                accum = 0;
+
+                fallback_buffer.reset();
             }
 
             camera_update(window, &camera_input);

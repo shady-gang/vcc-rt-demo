@@ -130,14 +130,11 @@ RA_RENDERER_SIGNATURE {
         }
         case AO: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
             color = clamp(pathtrace_ao(&rng, bvh, r), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
                 film_data = read_film(film, x, y, width, height);
-                // float f = 0.01f + 1.0f / accum;
-                // access_buffer(buf, x, y, width, height) = pack_color(unpack_color(access_buffer(buf, x, y, width, height)) * (1.0f - f) + color * f);
             }
             film_data = film_data + color;
             write_film(film, x, y, width, height, film_data);
@@ -146,14 +143,11 @@ RA_RENDERER_SIGNATURE {
         }
         case PT: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
             color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
                 film_data = read_film(film, x, y, width, height);
-                // float f = 0.01f + 1.0f / accum;
-                // access_buffer(buf, x, y, width, height) = pack_color(unpack_color(access_buffer(buf, x, y, width, height)) * (1.0f - f) + color * f);
             }
             film_data = film_data + color;
             write_film(film, x, y, width, height, film_data);
