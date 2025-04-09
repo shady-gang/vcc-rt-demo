@@ -53,11 +53,17 @@ RA_RENDERER_SIGNATURE {
     if (x >= width || y >= height)
         return;
 
-    float dx = (x / (float) width) * 2.0f - 1;
-    float dy = (y / (float) height) * 2.0f - 1;
+    RNGState rng = 0x811C9DC5;
+    rng = fnv_hash(rng, accum);
+    rng = fnv_hash(rng, x);
+    rng = fnv_hash(rng, y);
+
+    const auto camera_scale = camera_scale_from_hfov(cam.fov, width/(float)height);
+    float dx = ((x + randf(&rng)) / (float) width) * 2.0f - 1;
+    float dy = ((y + randf(&rng)) / (float) height) * 2.0f - 1;
     vec3 origin = cam.position;
 
-    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))), 0, 99999 };
+    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(camera_scale[0]*dx, camera_scale[1]*dy, -1.0f))), 0, 99999 };
 
     switch (mode) {
         case FACENORMAL: {
@@ -124,10 +130,6 @@ RA_RENDERER_SIGNATURE {
         }
         case AO: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            RNGState rng = 0x811C9DC5;
-            rng = fnv_hash(rng, accum);
-            rng = fnv_hash(rng, x);
-            rng = fnv_hash(rng, y);
             //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
             color = clamp(pathtrace_ao(&rng, bvh, r), vec3(0.0), vec3(9999.0f));
 
@@ -144,10 +146,6 @@ RA_RENDERER_SIGNATURE {
         }
         case PT: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            uint32_t rng = 0x811C9DC5;
-            rng = fnv_hash(rng, accum);
-            rng = fnv_hash(rng, x);
-            rng = fnv_hash(rng, y);
             //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
             color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
 

@@ -13,7 +13,7 @@ typedef struct {
     struct {
         float yaw, pitch;
     } rotation;
-    float fov;
+    float fov = 1.04719755f; // In radians (60deg)
 } Camera;
 
 RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));
@@ -37,4 +37,9 @@ typedef struct {
 
 RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
+RA_FUNCTION inline vec2 camera_scale_from_hfov(float fov, float aspect) {
+    float sw = tanf(fov * 0.5f);
+    float sh = sw / aspect;
+    return vec2(sw, sh);
+}
 #endif
