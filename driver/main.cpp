@@ -29,7 +29,7 @@ bool read_file(const char* filename, size_t* size, char** output);
 #include "model.h"
 #include "bvh_host.h"
 
-static_assert(sizeof(Sphere) == sizeof(float) * 4);
+// static_assert(sizeof(Sphere) == sizeof(float) * 4);
 
 float rng() {
     float n = (rand() / 65536.0f);
@@ -88,7 +88,7 @@ RA_RENDERER_SIGNATURE;
 bool gpu = true;
 bool cuda = false;
 bool use_bvh = true;
-RenderMode render_mode = AO;
+RenderMode render_mode = DEFAULT_RENDER_MODE;
 
 int max_frames = 0;
 int nframe = 0, accum = 0;
@@ -118,21 +118,6 @@ int main(int argc, char** argv) {
         }
         if (strcmp(argv[i], "--cuda") == 0) {
             cuda = true;
-            continue;
-        }
-        if (strcmp(argv[i], "--speed") == 0) {
-            camera_state.fly_speed = strtof(argv[++i], nullptr);
-            continue;
-        }
-        if (strcmp(argv[i], "--position") == 0) {
-            camera.position.x = strtof(argv[++i], nullptr);
-            camera.position.y = strtof(argv[++i], nullptr);
-            camera.position.z = strtof(argv[++i], nullptr);
-            continue;
-        }
-        if (strcmp(argv[i], "--rotation") == 0) {
-            camera.rotation.yaw = strtof(argv[++i], nullptr);
-            camera.rotation.pitch = strtof(argv[++i], nullptr);
             continue;
         }
         if (strcmp(argv[i], "--size") == 0) {
@@ -190,13 +175,21 @@ int main(int argc, char** argv) {
     imr::FpsCounter fps_counter;
 
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        const bool shiftPressed = (mods & GLFW_MOD_SHIFT) == GLFW_MOD_SHIFT;
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             gpu = !gpu;
             accum = 0;
         } if (action == GLFW_PRESS && key == GLFW_KEY_B) {
             use_bvh = !use_bvh;
         } if (action == GLFW_PRESS && key == GLFW_KEY_H) {
-            render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
+            if (shiftPressed) {
+                if (render_mode == (RenderMode)0)
+                    render_mode = MAX_RENDER_MODE;
+                else
+                    render_mode = (RenderMode) (render_mode - 1);
+            } else {
+                render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
+            }
             accum = 0;
         } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
             printf("--position %f %f %f --rotation %f %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch);
@@ -267,6 +260,30 @@ int main(int argc, char** argv) {
     Model model(model_filename, device);
     BVHHost bvh(model, device);
 
+    // Setup camera
+    if (model.has_camera)
+        camera = model.loaded_camera;
+    const auto scene_diameter = bvh.scene_max - bvh.scene_min;
+    camera_state.fly_speed = fmaxf(1e-4f, fmaxf(scene_diameter[0], fmaxf(scene_diameter[1], scene_diameter[2])));
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--speed") == 0) {
+            camera_state.fly_speed = strtof(argv[++i], nullptr);
+            continue;
+        }
+        if (strcmp(argv[i], "--position") == 0) {
+            camera.position.x = strtof(argv[++i], nullptr);
+            camera.position.y = strtof(argv[++i], nullptr);
+            camera.position.z = strtof(argv[++i], nullptr);
+            continue;
+        }
+        if (strcmp(argv[i], "--rotation") == 0) {
+            camera.rotation.yaw = strtof(argv[++i], nullptr);
+            camera.rotation.pitch = strtof(argv[++i], nullptr);
+            continue;
+        }
+    }
+
     auto epoch = time();
     auto prev_frame = epoch;
     int frames_in_epoch = 0;
@@ -310,8 +327,12 @@ int main(int argc, char** argv) {
                 if (use_bvh)
                     ntris = 0;
                 args.push_back(&ntris);
-                uint64_t ptr = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
-                args.push_back(&ptr);
+                uint64_t ptr_tris = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
+                args.push_back(&ptr_tris);
+                int nmats = model.materials.size();
+                args.push_back(&nmats);
+                uint64_t ptr_mats = shd_rn_get_buffer_device_pointer(model.materials_gpu);
+                args.push_back(&ptr_mats);
                 args.push_back(&bvh.gpu_bvh);
                 args.push_back(&frame);
                 args.push_back(&accum);
@@ -333,7 +354,8 @@ int main(int argc, char** argv) {
                         int ntris = model.triangles.size();
                         if (use_bvh)
                             ntris = 0;
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), bvh.host_bvh, nframe, accum, render_mode);
+                        int nmats = model.materials.size();
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), nmats, model.materials.data(), bvh.host_bvh, nframe, accum, render_mode);
                     }
                 }
                 auto now = time();

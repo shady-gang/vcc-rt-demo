@@ -13,6 +13,9 @@ struct BVHHost {
     std::vector<int> indices;
 #endif
 
+    vec3 scene_min;
+    vec3 scene_max;
+
     BVH host_bvh;
     BVH gpu_bvh;
     shady::Buffer* gpu_nodes;

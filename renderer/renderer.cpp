@@ -1,213 +1,6 @@
 #include "renderer.h"
-
-static_assert(sizeof(Sphere) == sizeof(float) * 4);
-
-RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
-    const unsigned int fnv_prime = 0x811C9DC5;
-    unsigned int hash = 0;
-    unsigned int i = 0;
-
-    for (i = 0; i < length; str++, i++)
-    {
-        hash *= fnv_prime;
-        hash ^= (*str);
-    }
-
-    return hash;
-}
-
-// FNV hash function
-auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
-    h = (h * 16777619u) ^ ( d           & 0xFFu);
-    h = (h * 16777619u) ^ ((d >>  8u) & 0xFFu);
-    h = (h * 16777619u) ^ ((d >> 16u) & 0xFFu);
-    h = (h * 16777619u) ^ ((d >> 24u) & 0xFFu);
-    return h;
-}
-
-RA_FUNCTION unsigned int nrand(unsigned int* rng) {
-    unsigned int orand = *rng;
-    *rng = FNVHash((char*) &orand, 4);
-    return *rng;
-}
-
-RA_FUNCTION auto xorshift(uint32_t* seed) -> uint32_t {
-    auto x = *seed;
-    // x = select(x == 0u, 1u, x);
-    x = (x == 0) ? 1u : x;
-    x ^= x << 13u;
-    x ^= x >> 17u;
-    x ^= x << 5u;
-    *seed = x;
-    return x;
-}
-
-//auto randi = xorshift;
-#define randi xorshift
-
-// [0.0, 1.0]
-RA_FUNCTION auto randf(uint32_t* rnd) -> float {
-    // Assumes IEEE 754 floating point format
-    auto x = randi(rnd);
-    //return std::bit_cast<float>((127u << 23u) | (x & 0x7FFFFFu)) - 1.0f;
-    unsigned i = (127u << 23u) | (x & 0x7FFFFFu);
-    float f;
-    f = *(float*) &i;
-    return f - 1.0f;
-    //return std::bit_cast<float>() - 1.0f;
-}
-
-/*RA_FUNCTION auto randf(uint32_t* rnd) -> float {
-    // Assumes IEEE 754 floating point format
-    auto x = randi(rnd);
-    //return std::bit_cast<float>((127u << 23u) | (x & 0x7FFFFFu)) - 1.0f;
-    unsigned i = (127u << 23u) | (x & 0x7FFFFFu);
-    float f;
-    f = *(float*) &i;
-    return f / 2.0f - 0.5f;
-}*/
-
-struct DirSample {
-    vec3 dir;
-    float pdf;
-};
-
-// Probability density function for uniform sphere sampling
-RA_FUNCTION auto uniform_sphere_pdf() -> float { return 1.0f / (4.0f * M_PI); }
-
-RA_FUNCTION auto make_dir_sample(float c, float s, float phi, float pdf) -> DirSample {
-    auto x = s * cosf(phi);
-    auto y = s * sinf(phi);
-    auto z = c;
-    return DirSample {
-        .dir = vec3(x, y, z),
-        .pdf = pdf
-    };
-}
-
-// Samples a direction uniformly on a sphere
-RA_FUNCTION auto sample_uniform_sphere(float u, float v) -> DirSample {
-    auto c = 2.0f * v - 1.0f;
-    auto s = sqrtf(1.0f - c * c);
-    auto phi = 2.0f * M_PI * u;
-    return make_dir_sample(c, s, phi, uniform_sphere_pdf());
-}
-
-// Probability density function for cosine weighted hemisphere sampling
-RA_FUNCTION auto cosine_hemisphere_pdf(float c) -> float { return c * (1.0f / M_PI); }
-
-RA_FUNCTION auto sample_cosine_hemisphere(float u, float v) -> DirSample {
-    auto c = sqrtf(1.0f - v);
-    auto s = sqrtf(v);
-    auto phi = 2.0f * M_PI * u;
-    return make_dir_sample(c, s, phi, cosine_hemisphere_pdf(c));
-}
-
-RA_FUNCTION float drand48(unsigned int* rng) {
-    float n = (nrand(rng) / 65536.0f);
-    n = n - floorf(n);
-    return n;
-}
-
-RA_FUNCTION void
-orthoBasis(vec3 *basis, vec3 n)
-{
-    basis[2] = n;
-    basis[1].x = 0.0f; basis[1].y = 0.0f; basis[1].z = 0.0f;
-
-    if ((n.x < 0.6f) && (n.x > -0.6f)) {
-        basis[1].x = 1.0f;
-    } else if ((n.y < 0.6f) && (n.y > -0.6f)) {
-        basis[1].y = 1.0f;
-    } else if ((n.z < 0.6f) && (n.z > -0.6f)) {
-        basis[1].z = 1.0f;
-    } else {
-        basis[1].x = 1.0f;
-    }
-
-    basis[0] = cross(basis[1], basis[2]);
-    basis[0] = normalize(basis[0]);
-
-    basis[1] = cross(basis[2], basis[0]);
-    basis[1] = normalize(basis[1]);
-}
-
-RA_FUNCTION vec3 pathtrace1(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
-    vec3 lo = 0.0f;
-
-    if (path_len > 1)
-        return vec3(0);
-
-    int dc;
-    Hit hit { .t = ray.tmax };
-    if (bvh.intersect(ray, hit, &dc)) {
-        /*vec3 p = ray.origin + ray.dir * hit.t + hit.n * epsilon;
-        vec3 basis[3];
-        orthoBasis(basis, hit.n);
-
-        Ray bounced_ray = { .origin = p };
-        bounced_ray.origin = p;
-        // local -> global
-        float u = randf(rng);
-        auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
-        float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
-        float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
-        float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
-        bounced_ray.dir.x = rx;
-        bounced_ray.dir.y = ry;
-        bounced_ray.dir.z = rz;
-
-        bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
-        bounced_ray.tmax = 1.0e+17f;
-
-        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);*/
-    } else
-        lo = lo + vec3(1.0f) / pdf;
-
-    return vec3(lo);
-}
-
-RA_FUNCTION vec3 pathtrace(unsigned int* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
-    vec3 lo = 0.0f;
-
-    if (path_len > 2)
-        return vec3(0);
-
-    int dc;
-    Hit hit { .t = ray.tmax };
-    if (bvh.intersect(ray, hit, &dc)) {
-        vec3 p = ray.origin + ray.dir * hit.t + hit.n * epsilon;
-        vec3 basis[3];
-        orthoBasis(basis, hit.n);
-
-        Ray bounced_ray = { .origin = p };
-        bounced_ray.origin = p;
-        // local -> global
-        float u = randf(rng);
-        auto sample_dir = sample_cosine_hemisphere(u, randf(rng));
-        float rx = sample_dir.dir.x * basis[0].x + sample_dir.dir.y * basis[1].x + sample_dir.dir.z * basis[2].x;
-        float ry = sample_dir.dir.x * basis[0].y + sample_dir.dir.y * basis[1].y + sample_dir.dir.z * basis[2].y;
-        float rz = sample_dir.dir.x * basis[0].z + sample_dir.dir.y * basis[1].z + sample_dir.dir.z * basis[2].z;
-        bounced_ray.dir.x = rx;
-        bounced_ray.dir.y = ry;
-        bounced_ray.dir.z = rz;
-
-        bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * epsilon;
-        bounced_ray.tmax = 1.0e+17f;
-
-        lo = lo + pathtrace(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample_dir.pdf);
-    } else
-        lo = lo + vec3(1.0f) / pdf;
-
-    return vec3(lo);
-}
-
-RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
-    v.x = fminf(max.x, fmaxf(v.x, min.x));
-    v.y = fminf(max.y, fmaxf(v.y, min.y));
-    v.z = fminf(max.z, fmaxf(v.z, min.z));
-    return v;
-}
+#include "colormap.h"
+#include "ao.h"
 
 RA_FUNCTION uint32_t pack_color(vec3 color) {
     color = clamp(color, vec3(0.0f), vec3(1.0f));
@@ -267,15 +60,58 @@ RA_RENDERER_SIGNATURE {
     Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(dx, dy, -1.0f))), 0, 99999 };
 
     switch (mode) {
-        case PRIMARY: {
+        case FACENORMAL: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
 
-            Hit nearest_hit = { r.tmin };
+            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
             int iter;
             bvh.intersect(r, nearest_hit, &iter);
 
-            if (nearest_hit.t > 0.0f)
-                color = vec3(0.5f) + nearest_hit.n * 0.5f;
+            if (nearest_hit.t > 0.0f && nearest_hit.prim_id >= 0) {
+                Triangle tri = bvh.tris[nearest_hit.prim_id];
+                color = color_normal(tri.get_face_normal());
+            }
+            access_frame_buffer(fb, x, y, width, height) = pack_color(color);
+            break;
+        }
+        case VERTEXNORMAL: {
+            vec3 color = vec3(0.0f, 0.5f, 1.0f);
+
+            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            int iter;
+            bvh.intersect(r, nearest_hit, &iter);
+
+            if (nearest_hit.t > 0.0f && nearest_hit.prim_id >= 0) {
+                Triangle tri = bvh.tris[nearest_hit.prim_id];
+                color = color_normal(tri.get_vertex_normal(nearest_hit.primary));
+            }
+            access_frame_buffer(fb, x, y, width, height) = pack_color(color);
+            break;
+        }
+        case TEXCOORDS: {
+            vec3 color = vec3(0.0f, 0.0f, 0.0f);
+
+            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            int iter;
+            bvh.intersect(r, nearest_hit, &iter);
+
+            if (nearest_hit.t > 0.0f && nearest_hit.prim_id >= 0) {
+                Triangle tri = bvh.tris[nearest_hit.prim_id];
+                color.xy = tri.get_texcoords(nearest_hit.primary);
+            }
+            access_frame_buffer(fb, x, y, width, height) = pack_color(color);
+            break;
+        }
+        case PRIM_IDS: {
+            vec3 color = vec3(0.0f, 0.0f, 0.0f);
+
+            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            int iter;
+            bvh.intersect(r, nearest_hit, &iter);
+
+            if (nearest_hit.t > 0.0f && nearest_hit.prim_id >= 0) {
+                color = color_palette(nearest_hit.prim_id);
+            }
             access_frame_buffer(fb, x, y, width, height) = pack_color(color);
             break;
         }
@@ -288,12 +124,12 @@ RA_RENDERER_SIGNATURE {
         }
         case AO: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            uint32_t rng = 0x811C9DC5;
+            RNGState rng = 0x811C9DC5;
             rng = fnv_hash(rng, accum);
             rng = fnv_hash(rng, x);
             rng = fnv_hash(rng, y);
             //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
-            color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f), vec3(0.0), vec3(9999.0f));
+            color = clamp(pathtrace_ao(&rng, bvh, r), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
@@ -304,6 +140,27 @@ RA_RENDERER_SIGNATURE {
             film_data = film_data + color;
             write_film(film, x, y, width, height, film_data);
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
+            break;
+        }
+        case PT: {
+            vec3 color = vec3(0.0f, 0.5f, 1.0f);
+            uint32_t rng = 0x811C9DC5;
+            rng = fnv_hash(rng, accum);
+            rng = fnv_hash(rng, x);
+            rng = fnv_hash(rng, y);
+            //unsigned int rng = (x * width + y) + accum;// ^ FNVHash(reinterpret_cast<char*>(&accum), sizeof(accum));
+            color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
+
+            vec3 film_data = vec3(0);
+            if (accum > 0) {
+                film_data = read_film(film, x, y, width, height);
+                // float f = 0.01f + 1.0f / accum;
+                // access_buffer(buf, x, y, width, height) = pack_color(unpack_color(access_buffer(buf, x, y, width, height)) * (1.0f - f) + color * f);
+            }
+            film_data = film_data + color;
+            write_film(film, x, y, width, height, film_data);
+            access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
+            break;
         }
     }
 }

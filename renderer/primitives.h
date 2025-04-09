@@ -9,16 +9,24 @@ struct Ray {
     float tmin = 0, tmax = 99999;
 };
 
+// struct Hit {
+//     float t;
+//     // pls pack well
+//     // vec3 p;
+//     float u;
+//     vec3 n;
+//     float v;
+// };
+
 struct Hit {
     float t;
-    // pls pack well
-    // vec3 p;
-    float u;
-    vec3 n;
-    float v;
+    vec2 primary; // aka. barycentric coordinates
+    int prim_id;
 };
 
 struct Sphere {
+    int prim_id;
+    int mat_id;
     vec3 center;
     float radius;
 
@@ -34,9 +42,17 @@ struct BBox {
 };
 
 struct Triangle {
+    int prim_id;
+    int mat_id;
     vec3 v0, v1, v2;
+    vec3 n0, n1, n2;
+    vec2 t0, t1, t2;
 
     RA_METHOD bool intersect(Ray r, Hit&);
+    RA_METHOD vec3 get_face_normal() const;
+    RA_METHOD vec3 get_position(vec2 bary) const;
+    RA_METHOD vec3 get_vertex_normal(vec2 bary) const;
+    RA_METHOD vec2 get_texcoords(vec2 bary) const;
 };
 
 #endif

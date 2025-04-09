@@ -3,6 +3,8 @@
 
 #include "host.h"
 #include "primitives.h"
+#include "material.h"
+#include "camera.h"
 
 #include <string>
 
@@ -14,6 +16,12 @@ struct Model {
     // Triangle* triangles_host;
     std::vector<Triangle> triangles;
     shady::Buffer* triangles_gpu;
+
+    std::vector<Material> materials;
+    shady::Buffer* materials_gpu;
+
+    bool has_camera;
+    Camera loaded_camera;
 };
 
 #endif
