@@ -6,6 +6,10 @@
 
 RA_CONSTANT float PTEnvMap = 1/(4*pi);
 
+RA_FUNCTION inline float compute_rr_factor(vec3 color, int depth) {
+    return depth < 2 ? 1.0f : clampf(2 * color_luminance(color), 0.05f, 0.95f);
+}
+
 RA_FUNCTION vec3 pathtrace1(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf) {
     vec3 lo = 0.0f;
 
@@ -41,12 +45,12 @@ RA_FUNCTION vec3 pathtrace1(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3
     return lo;
 }
 
-RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf, int max_depth, Material* materials) {
+RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int depth, vec3 throughput, float prev_pdf, int max_depth, Material* materials) {
     const float offset = 0.001f;
 
     vec3 lo = 0.0f;
 
-    if (path_len > max_depth)
+    if (depth > max_depth)
         return vec3(0);
 
     int dc;
@@ -54,23 +58,31 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 
     if (bvh.intersect(ray, hit, &dc)) {
         Triangle tri = bvh.tris[hit.prim_id];
 
+        // TODO: Check emission
+
         vec3 n = tri.get_vertex_normal(hit.primary);
         vec3 fn = ray.dir.dot(n) > 0 ? -n : n; // Ensure normal is facing forward
         vec3 p = tri.get_position(hit.primary);
         auto frame = shading::make_shading_frame(fn);
 
-        auto sample = shading::sample_material(rng, -ray.dir, &materials[tri.mat_id]);
+        const auto sample = shading::sample_material(rng, shading::to_local(-ray.dir, frame), &materials[tri.mat_id]);
 
-        Ray bounced_ray = { .origin = p };
-        bounced_ray.origin = p;
-        bounced_ray.dir = shading::to_world(sample.dir, frame);
+        // Handle rr
+        float rr = compute_rr_factor(sample.color * throughput, depth);
+        if (randf(rng) > rr)
+            return vec3(0);
+
+        Ray bounced_ray = { 
+            .origin = p,
+            .dir = shading::to_world(sample.dir, frame),
+            .tmin = 0,
+            .tmax = 1.0e+17f,
+        };
         bounced_ray.origin = bounced_ray.origin + bounced_ray.dir * offset;
-        bounced_ray.tmax = 1.0e+17f;
 
         // TODO: Fix recursion bug
-        lo = lo + sample.color * pathtrace1(rng, bvh, bounced_ray, path_len + 1, vec3(0), pdf * sample.pdf);
-    } else
-        lo = lo + vec3(PTEnvMap) / pdf;
-
-    return lo;
+        return pathtrace(rng, bvh, bounced_ray, depth + 1, sample.color * throughput / rr, sample.pdf * rr, max_depth, materials);
+    } else {
+        return throughput * PTEnvMap;
+    }
 }

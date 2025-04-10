@@ -130,7 +130,7 @@ RA_RENDERER_SIGNATURE {
         }
         case AO: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            color = clamp(pathtrace_ao(&rng, bvh, r), vec3(0.0), vec3(9999.0f));
+            color = pathtrace_ao(&rng, bvh, r);
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
@@ -143,7 +143,7 @@ RA_RENDERER_SIGNATURE {
         }
         case PT: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            color = clamp(pathtrace(&rng, bvh, r, 0, 0.f, 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
+            color = clamp(pathtrace(&rng, bvh, r, 0, vec3(1.0f), 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {

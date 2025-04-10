@@ -208,7 +208,8 @@ int main(int argc, char** argv) {
     compiler_config.dynamic_scheduling = true;
     //compiler_config.per_thread_stack_size = 512;
     //compiler_config.per_thread_stack_size = 1024;
-    compiler_config.per_thread_stack_size = 1564;
+    //compiler_config.per_thread_stack_size = 1564;
+    compiler_config.per_thread_stack_size = 2048;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
