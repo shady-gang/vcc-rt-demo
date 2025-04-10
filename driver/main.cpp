@@ -106,10 +106,18 @@ int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
     int WIDTH = 832*2, HEIGHT = 640*2;
+    int stack_size = 2048;
+
+    shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
+    shady::shd_parse_compiler_config_args(&compiler_config, &argc, argv);
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
             max_frames = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(argv[i], "--stack-size") == 0) {
+            stack_size = atoi(argv[++i]);
             continue;
         }
         if (strcmp(argv[i], "--no-bvh") == 0) {
@@ -206,12 +214,9 @@ int main(int argc, char** argv) {
     shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
-    shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
-    //compiler_config.per_thread_stack_size = 512;
-    //compiler_config.per_thread_stack_size = 1024;
-    compiler_config.per_thread_stack_size = 1564;
+    compiler_config.per_thread_stack_size = stack_size;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
