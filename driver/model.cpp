@@ -80,25 +80,17 @@ Model::Model(const char* path, Device* device) {
     offload(device, triangles, triangles_gpu);
 
     // --------------- Special lights
+    vec3 env_color = vec3(0);
     if (scene->HasLights()) {
-        vec3 env_color = vec3(0);
         for (int i = 0; i < scene->mNumLights; ++i) {
             const auto light = scene->mLights[i];
             if (light->mType == aiLightSource_AMBIENT) {
                 env_color = vec3(light->mColorAmbient[0], light->mColorAmbient[1], light->mColorAmbient[2]);
             }
         }
-        if (env_color[0] > 0 || env_color[1] > 0 || env_color[2] > 0)
-            emitters.push_back(Emitter{ .emission = env_color });
+
     }
-    if (emitters.empty()) {
-        printf("No light given for scene. Adding default environment light.\n");
-        emitters.push_back(Emitter{ .emission = vec3(10/pi) });
-    }
-    printf("Loaded %zu emitters\n", this->emitters.size());
-    for (const auto& emitter: emitters)
-        printf("LIGHT (%f,%f,%f)\n", emitter.emission[0], emitter.emission[1], emitter.emission[2]);
-    offload(device, emitters, emitters_gpu);
+    emitters.push_back(Emitter{ .emission = env_color });
 
     // --------------- Handle materials
     for (int i = 0; i < scene->mNumMaterials; ++i) {
@@ -123,18 +115,17 @@ Model::Model(const char* path, Device* device) {
         if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission))
             transmission = 0;
 
-        vec3 emission = vec3(0);
+        vec3 emission = vec3(1);
         if (AI_SUCCESS != mat->Get(AI_MATKEY_COLOR_EMISSIVE, emission))
-            emission = vec3(0);
+            emission = vec3(1);
         
         float emission_strength = 0;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_EMISSIVE_INTENSITY, emission_strength))
             emission_strength = 0;
         
         emission = emission_strength * emission;
-        if (emission[0] + emission[1] + emission[2] > 0) {
-// TODO:
-        }
+        if (emission[0] + emission[1] + emission[2] > 0)
+            emitters.push_back(Emitter{.emission=vec3{emission[0], emission[1], emission[2]}});
 
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
@@ -157,6 +148,17 @@ Model::Model(const char* path, Device* device) {
     for (const auto& mat: materials)
         printf("MAT (%f,%f,%f) r=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness);
     offload(device, materials, materials_gpu);
+
+
+    // --------------- Lights
+    if (emitters.empty()) {
+        printf("No light given for scene. Adding default environment light.\n");
+        emitters.push_back(Emitter{ .emission = vec3(10/pi) });
+    }
+    printf("Loaded %zu emitters\n", this->emitters.size());
+    for (const auto& emitter: emitters)
+        printf("LIGHT (%f,%f,%f)\n", emitter.emission[0], emitter.emission[1], emitter.emission[2]);
+    offload(device, emitters, emitters_gpu);
 
     // --------------- Camera
     has_camera = false;
