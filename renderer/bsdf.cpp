@@ -4,11 +4,11 @@
 namespace shading {
 
 RA_FUNCTION vec3 eval_diffuse(vec3 in_dir, vec3 out_dir, vec3 albedo) {
-    return albedo * fmaxf(in_dir[2],0) / pi;
+    return albedo * fmaxf(in_dir.z, 0) / pi;
 }
 
 RA_FUNCTION float pdf_diffuse(vec3 in_dir, vec3 out_dir) {
-    return cosine_hemisphere_pdf(in_dir.z);
+    return cosine_hemisphere_pdf(fmaxf(in_dir.z, 0));
 }
 
 RA_FUNCTION BsdfSample sample_diffuse(RNGState* rng, vec3 out_dir, vec3 albedo) {
