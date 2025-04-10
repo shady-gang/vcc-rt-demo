@@ -80,16 +80,21 @@ Model::Model(const char* path, Device* device) {
     offload(device, triangles, triangles_gpu);
 
     // --------------- Special lights
-    vec3 env_color = vec3(0);
     if (scene->HasLights()) {
+        vec3 env_color = vec3(0);
         for (int i = 0; i < scene->mNumLights; ++i) {
             const auto light = scene->mLights[i];
             if (light->mType == aiLightSource_AMBIENT) {
                 env_color = vec3(light->mColorAmbient[0], light->mColorAmbient[1], light->mColorAmbient[2]);
             }
         }
+        if (env_color[0] > 0 || env_color[1] > 0 || env_color[2] > 0)
+            emitters.push_back(Emitter{ .emission = env_color });
     }
-    emitters.push_back(Emitter{ .emission = env_color });
+    if (emitters.empty()) {
+        printf("No light given for scene. Adding default environment light.\n");
+        emitters.push_back(Emitter{ .emission = vec3(10/pi) });
+    }
     printf("Loaded %zu emitters\n", this->emitters.size());
     for (const auto& emitter: emitters)
         printf("LIGHT (%f,%f,%f)\n", emitter.emission[0], emitter.emission[1], emitter.emission[2]);
