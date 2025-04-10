@@ -10,8 +10,10 @@ RA_METHOD bool Sphere::intersect(Ray r, Hit& hit) {
         float t = -b - sqrtf(d);
         if (t > r.tmin && t < r.tmax) {
             hit.t = t;
-            vec3 p = r.origin + r.dir * t;
-            hit.n = normalize(p - this->center);
+            hit.primary = vec2(r.dir.x, r.dir.y); // TODO
+            hit.prim_id = prim_id;
+            // vec3 p = r.origin + r.dir * t;
+            // hit.n = normalize(p - this->center);
             return true;
         }
     }
@@ -83,8 +85,8 @@ RA_METHOD bool BBox::intersect(Ray r, vec3 ray_inv_dir, Hit& hit) {
         n.arr[axis] = -sign(r.dir.arr[axis]);
 
         hit.t = t0;
-        //hit.p = p;
-        hit.n = n;
+        // hit.p = p;
+        // hit.n = n;
         return true;
     }
 
@@ -141,9 +143,11 @@ RA_METHOD bool Triangle::intersect(Ray ray, Hit& hit) {
 
     hit.t = t;
     //hit.p = interpolateBarycentric<vec3>({u, v}, v0, v1, v2);
-    hit.u = u;
-    hit.v = v;
-    hit.n = normalize(edge1.cross(edge2));
+    hit.primary = vec2(u, v);
+    hit.prim_id = prim_id;
+    // hit.u = u;
+    // hit.v = v;
+    // hit.n = normalize(edge1.cross(edge2));
     return true;
 
     //its.t              = t;
@@ -154,4 +158,22 @@ RA_METHOD bool Triangle::intersect(Ray ray, Hit& hit) {
     //                                     : its.geometryNormal;
     //its.tangent        = tangent;
     //its.pdf            = 0;
+}
+
+RA_METHOD vec3 Triangle::get_face_normal() const {
+    const vec3 edge1 = v1 - v0;
+    const vec3 edge2 = v2 - v0;
+    return normalize(edge1.cross(edge2));
+}
+
+RA_METHOD vec3 Triangle::get_position(vec2 bary) const {
+    return interpolateBarycentric(bary, v0, v1, v2);
+}
+
+RA_METHOD vec3 Triangle::get_vertex_normal(vec2 bary) const {
+    return normalize(interpolateBarycentric(bary, n0, n1, n2));
+}
+
+RA_METHOD vec2 Triangle::get_texcoords(vec2 bary) const {
+    return interpolateBarycentric(bary, t0, t1, t2);
 }

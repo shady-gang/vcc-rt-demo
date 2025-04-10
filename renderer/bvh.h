@@ -29,6 +29,10 @@ struct BVH {
     Triangle* tris;
 
     RA_METHOD bool intersect(Ray ray, Hit& hit, int* iteration_count);
+    RA_METHOD bool intersect(Ray ray, Hit& hit) { 
+        int ic;
+        return intersect(ray, hit, &ic);
+    }
 };
 
 #endif

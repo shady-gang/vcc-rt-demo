@@ -7,6 +7,7 @@
 #ifdef __SHADY__
 #include "shady.h"
 static float M_PI = 3.14159265f;
+static float fabs(float) __asm__("shady::pure_op::GLSL.std.450::4::Invocation");
 static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
 static float floorf(float) __asm__("shady::pure_op::GLSL.std.450::8::Invocation");
 static float sinf(float) __asm__("shady::pure_op::GLSL.std.450::13::Invocation");
@@ -27,6 +28,10 @@ typedef long int size_t;
 #define RA_FUNCTION static
 #define RA_METHOD
 #define RA_CONSTANT static
+RA_FUNCTION float copysignf(float a, float b) {
+    return sign(b) ? -fabs(a) : fabs(a);
+}
+
 #elif __CUDACC__
 //static float M_PI = 3.14159265f;
 
@@ -55,6 +60,7 @@ RA_FUNCTION static float sign(float f) {
 using namespace nasl;
 
 RA_CONSTANT float epsilon = 1e-4f;
+RA_CONSTANT float pi = 3.141592f;
 
 /// @brief Barycentric interpolation ([0,0] returns a, [1,0] returns b, and
 /// [0,1] returns c).
@@ -74,5 +80,20 @@ RA_FUNCTION T interpolateBarycentric(const vec2 &bary, const T &a, const T &b,
         interpolateBarycentric(bary, a.normal, b.normal, c.normal),
     };
 }*/
+
+inline RA_FUNCTION float clampf(float v, float min, float max) {
+    return fminf(max, fmaxf(v, min));
+}
+
+inline RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
+    v.x = fminf(max.x, fmaxf(v.x, min.x));
+    v.y = fminf(max.y, fmaxf(v.y, min.y));
+    v.z = fminf(max.z, fmaxf(v.z, min.z));
+    return v;
+}
+
+inline RA_FUNCTION float color_luminance(vec3 color) {
+    return color[0] * 0.2126f + color[1] * 0.7152f + color[2] * 0.0722f;
+}
 
 #endif

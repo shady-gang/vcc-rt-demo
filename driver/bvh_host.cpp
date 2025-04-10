@@ -91,14 +91,27 @@ BVHHost::BVHHost(Model& model, Device* device) {
         tmp_nodes.push_back(n);
     }
 
+    const auto scene_bbox = bvh.get_root().get_bbox();
+    scene_min = vec3(scene_bbox.min[0], scene_bbox.min[1], scene_bbox.min[2]);
+    scene_max = vec3(scene_bbox.max[0], scene_bbox.max[1], scene_bbox.max[2]);
+    
     // This precomputes some data to speed up traversal further.
     std::vector<Triangle> tmp_reordered_tris(model.triangles.size());
     executor.for_each(0, model.triangles.size(), [&] (size_t begin, size_t end) {
         for (size_t i = begin; i < end; ++i) {
             auto j = true ? tmp_indices[i] : i;
-            tmp_reordered_tris[i] = model.triangles[j];
+            tmp_reordered_tris[i] = model.triangles[j];        
         }
     });
+    
+#ifdef BVH_REORDER_TRIS
+    // Ensure the prim ids are still correct
+    executor.for_each(0, tmp_reordered_tris.size(), [&] (size_t begin, size_t end) {
+        for (size_t i = begin; i < end; ++i) {
+            tmp_reordered_tris[i].prim_id = (int)i;        
+        }
+    });
+#endif
 
     nodes = std::move(tmp_nodes);
 #ifdef BVH_REORDER_TRIS
