@@ -25,7 +25,6 @@ struct Model {
     std::vector<Emitter> emitters;
     shady::Buffer* emitters_gpu;
 
-    bool has_camera;
     Camera loaded_camera;
 };
 

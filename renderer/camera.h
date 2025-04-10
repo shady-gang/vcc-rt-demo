@@ -13,7 +13,7 @@ typedef struct {
     struct {
         float yaw, pitch;
     } rotation;
-    float fov = 1.04719755f; // In radians (60deg)
+    float fov;
 } Camera;
 
 RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));

@@ -5,6 +5,7 @@
 
 struct Emitter {
     vec3 emission;
-    float _pad;
+    int prim_id;
 };
+
 #endif

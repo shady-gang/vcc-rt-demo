@@ -3,6 +3,7 @@
 #include <cmath>
 #include <array>
 #include <vector>
+#include <optional>
 
 #include <cstdint>
 #include <cstring>
@@ -102,12 +103,18 @@ auto walk_pNext_chain(VkBaseInStructure* s, T t) {
     t(s);
 };
 
+struct CommandArguments {
+    int max_depth = 5;
+    std::optional<float> camera_speed;
+    std::optional<vec3> camera_eye;
+    std::optional<vec2> camera_rotation;
+};
+
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
     int WIDTH = 832*2, HEIGHT = 640*2;
-    int pt_max_depth = 5;
-
+    CommandArguments cmd_args;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
             max_frames = atoi(argv[++i]);
@@ -131,12 +138,28 @@ int main(int argc, char** argv) {
             continue;
         }
         if (strcmp(argv[i], "--max-depth") == 0) {
-            pt_max_depth = atoi(argv[++i]);
+            cmd_args.max_depth = atoi(argv[++i]);
             continue;
         }
-        // Skip options if not caught
-        if (strcmp(argv[i], "--") == 0)
+        if (strcmp(argv[i], "--speed") == 0) {
+            cmd_args.camera_speed= strtof(argv[++i], nullptr);
             continue;
+        }
+        if (strcmp(argv[i], "--position") == 0) {
+            vec3 pos;
+            pos.x = strtof(argv[++i], nullptr);
+            pos.y = strtof(argv[++i], nullptr);
+            pos.z = strtof(argv[++i], nullptr);
+            cmd_args.camera_eye = pos;
+            continue;
+        }
+        if (strcmp(argv[i], "--rotation") == 0) {
+            vec2 rot;
+            rot.x = strtof(argv[++i], nullptr);
+            rot.y = strtof(argv[++i], nullptr);
+            cmd_args.camera_rotation = rot;
+            continue;
+        }
         model_filename = argv[i];
     }
 
@@ -269,29 +292,26 @@ int main(int argc, char** argv) {
     BVHHost bvh(model, device);
 
     // Setup camera
-    if (model.has_camera)
-        camera = model.loaded_camera;
-    const auto scene_diameter = bvh.scene_max - bvh.scene_min;
-    camera_state.fly_speed = fmaxf(1e-4f, fmaxf(scene_diameter[0], fmaxf(scene_diameter[1], scene_diameter[2])));
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--speed") == 0) {
-            camera_state.fly_speed = strtof(argv[++i], nullptr);
-            continue;
-        }
-        if (strcmp(argv[i], "--position") == 0) {
-            camera.position.x = strtof(argv[++i], nullptr);
-            camera.position.y = strtof(argv[++i], nullptr);
-            camera.position.z = strtof(argv[++i], nullptr);
-            continue;
-        }
-        if (strcmp(argv[i], "--rotation") == 0) {
-            camera.rotation.yaw = strtof(argv[++i], nullptr);
-            camera.rotation.pitch = strtof(argv[++i], nullptr);
-            continue;
-        }
+    camera = model.loaded_camera;
+    
+    if (cmd_args.camera_speed.has_value()) {
+        camera_state.fly_speed = *cmd_args.camera_speed;
+    } else {
+        const auto scene_diameter = bvh.scene_max - bvh.scene_min;
+        camera_state.fly_speed = fmaxf(1e-4f, fmaxf(scene_diameter[0], fmaxf(scene_diameter[1], scene_diameter[2])));
     }
 
+    if (cmd_args.camera_eye.has_value())
+        camera.position = *cmd_args.camera_eye;
+    
+    if (cmd_args.camera_rotation.has_value()){
+        camera.rotation.yaw = cmd_args.camera_rotation->x;
+        camera.rotation.pitch = cmd_args.camera_rotation->y;
+    }
+
+    printf("Loaded Camera: eye=(%f, %f, %f) rot=(%f, %f)\n", (float)camera.position.x, (float)camera.position.y, (float)camera.position.z, (float)camera.rotation.yaw, (float)camera.rotation.pitch);
+
+    // Setup other stuff
     auto epoch = time();
     auto prev_frame = epoch;
     int frames_in_epoch = 0;
@@ -358,7 +378,7 @@ int main(int argc, char** argv) {
                 args.push_back(&frame);
                 args.push_back(&accum);
                 args.push_back(&render_mode);
-                args.push_back(&pt_max_depth);
+                args.push_back(&cmd_args.max_depth);
                 //BVH* gpu_bvh = bvh.gpu_bvh;
 
                 shady::ExtraKernelOptions launch_options = {
@@ -377,7 +397,7 @@ int main(int argc, char** argv) {
                         if (use_bvh)
                             ntris = 0;
                         int nmats = model.materials.size();
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, pt_max_depth);
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, cmd_args.max_depth);
                     }
                 }
                 auto now = time();
