@@ -105,9 +105,8 @@ Model::Model(const char* path, Device* device) {
         auto mat = scene->mMaterials[i];
         aiColor3D base_color;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_BASE_COLOR, base_color)) {
-            if (AI_SUCCESS != mat->Get(AI_MATKEY_COLOR_DIFFUSE, base_color)) {
-                base_color = aiColor3D(0.5f, 0.2f, 0.85f);
-            }
+            if (AI_SUCCESS != mat->Get(AI_MATKEY_COLOR_DIFFUSE, base_color))
+                base_color = aiColor3D(1.0f, 0.0f, 1.0f);
         }
 
         float roughness;
@@ -168,6 +167,7 @@ Model::Model(const char* path, Device* device) {
             .rotation = {.yaw = 0, .pitch = 0}, // TODO
             .fov = camera->mHorizontalFOV,
         };
+        printf("CAMERA eye=(%f,%f,%f)\n", loaded_camera.position[0], loaded_camera.position[1], loaded_camera.position[2]);
         has_camera = true;
     }
 }
