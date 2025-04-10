@@ -104,14 +104,14 @@ BVHHost::BVHHost(Model& model, Device* device) {
         }
     });
     
-#ifdef BVH_REORDER_TRIS
-    // Ensure the prim ids are still correct
-    executor.for_each(0, tmp_reordered_tris.size(), [&] (size_t begin, size_t end) {
-        for (size_t i = begin; i < end; ++i) {
-            tmp_reordered_tris[i].prim_id = (int)i;        
-        }
-    });
-#endif
+// #ifdef BVH_REORDER_TRIS
+//     // Ensure the prim ids are still correct
+//     executor.for_each(0, tmp_reordered_tris.size(), [&] (size_t begin, size_t end) {
+//         for (size_t i = begin; i < end; ++i) {
+//             tmp_reordered_tris[i].prim_id = (int)i;        
+//         }
+//     });
+// #endif
 
     nodes = std::move(tmp_nodes);
 #ifdef BVH_REORDER_TRIS

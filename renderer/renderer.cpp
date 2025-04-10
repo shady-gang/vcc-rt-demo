@@ -144,7 +144,7 @@ RA_RENDERER_SIGNATURE {
         }
         case PT: {
             RenderContext ctx {
-                .primitives = bvh.tris,
+                .primitives = triangles,
                 .materials = materials,
                 .emitters = emitters,
                 .bvh = &bvh,
