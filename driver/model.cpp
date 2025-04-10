@@ -115,13 +115,13 @@ Model::Model(const char* path, Device* device) {
             roughness = 1;
 
         float metallic;
-        if (AI_SUCCESS != mat->Get(AI_MATKEY_METALLIC_FACTOR, roughness))
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_METALLIC_FACTOR, metallic))
             metallic = 0;
 
         float ior=1;
 
         float transmission;
-        if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, roughness))
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission))
             transmission = 0;
 
         vec3 emission = vec3(0);
