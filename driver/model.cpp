@@ -23,8 +23,12 @@ Model::Model(const char* path, Device* device) {
                                               | aiProcess_SortByPType
                                               | aiProcess_GenSmoothNormals
                                             );
+                                        
+    if (scene == nullptr) {
+        printf("ERROR: Import of \"%s\" failed: %s\n", path, importer.GetErrorString());
+        std::abort(); // TODO: Proper tools should catch this
+    }
 
-    assert(scene);
     std::vector<Triangle> tris;
     for (int i = 0; i < scene->mNumMeshes; i++) {
         auto mesh = scene->mMeshes[i];
