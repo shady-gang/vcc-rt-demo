@@ -4,6 +4,7 @@
 #include "bvh.h"
 #include "random.h"
 
-RA_FUNCTION vec3 pathtrace(RNGState* rng, BVH& bvh, Ray ray, int path_len, vec3 li, float pdf, int max_depth);
+struct RenderContext;
+RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, float prev_pdf, const RenderContext& ctx);
 
 #endif

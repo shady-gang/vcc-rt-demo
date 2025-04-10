@@ -16,7 +16,7 @@ struct ShadingFrame {
  * Journal of Computer Graphics Techniques (JCGT), vol. 6, no. 1, 1-8, 2017
  * http://jcgt.org/published/0006/01/01/
  */
-RA_FUNCTION ShadingFrame make_shading_frame(vec3 n) {
+inline RA_FUNCTION ShadingFrame make_shading_frame(vec3 n) {
   const float sign = copysignf(1, n[2]);
   const float a = -1 / (sign + n[2]);
   const float b = n[0] * n[1] * a;
@@ -26,21 +26,21 @@ RA_FUNCTION ShadingFrame make_shading_frame(vec3 n) {
   return ShadingFrame{.n = n, .t = t, .bt = bt};
 }
 
-RA_FUNCTION vec3 to_world(vec3 local_dir, ShadingFrame frame) {
+inline RA_FUNCTION vec3 to_world(vec3 local_dir, ShadingFrame frame) {
   return local_dir[0] * frame.t + local_dir[1] * frame.bt +
          local_dir[2] * frame.n;
 }
 
-RA_FUNCTION vec3 to_local(vec3 world_dir, ShadingFrame frame) {
+inline RA_FUNCTION vec3 to_local(vec3 world_dir, ShadingFrame frame) {
   return vec3(frame.t.dot(world_dir), frame.bt.dot(world_dir),
               frame.n.dot(world_dir));
 }
 
-RA_FUNCTION vec3 to_world(vec3 local_dir, vec3 normal) {
+inline RA_FUNCTION vec3 to_world(vec3 local_dir, vec3 normal) {
   return to_world(local_dir, make_shading_frame(normal));
 }
 
-RA_FUNCTION vec3 to_local(vec3 world_dir, vec3 normal) {
+inline RA_FUNCTION vec3 to_local(vec3 world_dir, vec3 normal) {
   return to_local(world_dir, make_shading_frame(normal));
 }
 

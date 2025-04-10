@@ -6,7 +6,7 @@ using namespace nasl;
 
 typedef unsigned int uint32_t;
 
-RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
+inline RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
     const unsigned int fnv_prime = 0x811C9DC5;
     unsigned int hash = 0;
     unsigned int i = 0;
@@ -21,7 +21,7 @@ RA_FUNCTION unsigned int FNVHash(char* str, unsigned int length) {
 }
 
 // FNV hash function
-RA_FUNCTION auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
+inline RA_FUNCTION auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
     h = (h * 16777619u) ^ ( d           & 0xFFu);
     h = (h * 16777619u) ^ ((d >>  8u) & 0xFFu);
     h = (h * 16777619u) ^ ((d >> 16u) & 0xFFu);
@@ -29,13 +29,13 @@ RA_FUNCTION auto fnv_hash(uint32_t h, uint32_t d) -> uint32_t {
     return h;
 }
 
-RA_FUNCTION unsigned int nrand(unsigned int* rng) {
+inline RA_FUNCTION unsigned int nrand(unsigned int* rng) {
     unsigned int orand = *rng;
     *rng = FNVHash((char*) &orand, 4);
     return *rng;
 }
 
-RA_FUNCTION auto xorshift(uint32_t* seed) -> uint32_t {
+inline RA_FUNCTION auto xorshift(uint32_t* seed) -> uint32_t {
     auto x = *seed;
     // x = select(x == 0u, 1u, x);
     x = (x == 0) ? 1u : x;
@@ -51,7 +51,7 @@ RA_FUNCTION auto xorshift(uint32_t* seed) -> uint32_t {
 
 typedef uint32_t RNGState;
 // [0.0, 1.0]
-RA_FUNCTION auto randf(RNGState* rnd) -> float {
+inline RA_FUNCTION auto randf(RNGState* rnd) -> float {
     // Assumes IEEE 754 floating point format
     auto x = randi(rnd);
     //return std::bit_cast<float>((127u << 23u) | (x & 0x7FFFFFu)) - 1.0f;

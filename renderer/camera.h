@@ -37,7 +37,7 @@ typedef struct {
 
 RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
-RA_FUNCTION inline vec2 camera_scale_from_hfov(float fov, float aspect) {
+inline RA_FUNCTION vec2 camera_scale_from_hfov(float fov, float aspect) {
     float sw = tanf(fov * 0.5f);
     float sh = sw / aspect;
     return vec2(sw, sh);

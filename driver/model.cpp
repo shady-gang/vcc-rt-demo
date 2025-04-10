@@ -79,7 +79,23 @@ Model::Model(const char* path, Device* device) {
     printf("Loaded %zu triangles\n", this->triangles.size());
     offload(device, triangles, triangles_gpu);
 
-    // Handle materials
+    // --------------- Special lights
+    vec3 env_color = vec3(0);
+    if (scene->HasLights()) {
+        for (int i = 0; i < scene->mNumLights; ++i) {
+            const auto light = scene->mLights[i];
+            if (light->mType == aiLightSource_AMBIENT) {
+                env_color = vec3(light->mColorAmbient[0], light->mColorAmbient[1], light->mColorAmbient[2]);
+            }
+        }
+    }
+    emitters.push_back(Emitter{ .emission = env_color });
+    printf("Loaded %zu emitters\n", this->emitters.size());
+    for (const auto& emitter: emitters)
+        printf("LIGHT (%f,%f,%f)\n", emitter.emission[0], emitter.emission[1], emitter.emission[2]);
+    offload(device, emitters, emitters_gpu);
+
+    // --------------- Handle materials
     for (int i = 0; i < scene->mNumMaterials; ++i) {
         auto mat = scene->mMaterials[i];
         aiColor3D base_color;
@@ -93,13 +109,42 @@ Model::Model(const char* path, Device* device) {
         if (AI_SUCCESS != mat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness))
             roughness = 1;
 
+        float metallic;
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_METALLIC_FACTOR, roughness))
+            metallic = 0;
+
+        float ior=1;
+
+        float transmission;
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, roughness))
+            transmission = 0;
+
+        vec3 emission = vec3(0);
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_COLOR_EMISSIVE, emission))
+            emission = vec3(0);
+        
+        float emission_strength = 0;
+        if (AI_SUCCESS != mat->Get(AI_MATKEY_EMISSIVE_INTENSITY, emission_strength))
+            emission_strength = 0;
+        
+        emission = emission_strength * emission;
+        if (emission[0] + emission[1] + emission[2] > 0) {
+// TODO:
+        }
+
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
-            .roughness = roughness
+            .roughness = roughness,
+            
+            .ior = ior,
+            .metallic = metallic,
+            .transmission = transmission,
+            
+            .emission = emission
         });
     }
 
-    if(materials.empty()) {
+    if (materials.empty()) {
         printf("Scene has no materials. Default to diffuse\n");
         materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1});
     } else {
@@ -109,6 +154,7 @@ Model::Model(const char* path, Device* device) {
         printf("MAT (%f,%f,%f) r=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness);
     offload(device, materials, materials_gpu);
 
+    // --------------- Camera
     has_camera = false;
     if (scene->HasCameras()) {
         const auto camera = scene->mCameras[0];
@@ -124,4 +170,5 @@ Model::Model(const char* path, Device* device) {
 Model::~Model() {
     shd_rn_destroy_buffer(triangles_gpu);
     shd_rn_destroy_buffer(materials_gpu);
+    shd_rn_destroy_buffer(emitters_gpu);
 }

@@ -106,6 +106,7 @@ int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
     int WIDTH = 832*2, HEIGHT = 640*2;
+    int pt_max_depth = 5;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
@@ -127,6 +128,10 @@ int main(int argc, char** argv) {
         if (strcmp(argv[i], "--size") == 0) {
             WIDTH = strtol(argv[++i], nullptr, 10);
             HEIGHT = strtol(argv[++i], nullptr, 10);
+            continue;
+        }
+        if (strcmp(argv[i], "--max-depth") == 0) {
+            pt_max_depth = atoi(argv[++i]);
             continue;
         }
         model_filename = argv[i];
@@ -209,7 +214,7 @@ int main(int argc, char** argv) {
     //compiler_config.per_thread_stack_size = 512;
     //compiler_config.per_thread_stack_size = 1024;
     //compiler_config.per_thread_stack_size = 1564;
-    compiler_config.per_thread_stack_size = 2048;
+    compiler_config.per_thread_stack_size = 2048+512;
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -342,14 +347,15 @@ int main(int argc, char** argv) {
                 args.push_back(&ntris);
                 uint64_t ptr_tris = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
                 args.push_back(&ptr_tris);
-                int nmats = model.materials.size();
-                args.push_back(&nmats);
                 uint64_t ptr_mats = shd_rn_get_buffer_device_pointer(model.materials_gpu);
                 args.push_back(&ptr_mats);
+                uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
+                args.push_back(&ptr_emitters);
                 args.push_back(&bvh.gpu_bvh);
                 args.push_back(&frame);
                 args.push_back(&accum);
                 args.push_back(&render_mode);
+                args.push_back(&pt_max_depth);
                 //BVH* gpu_bvh = bvh.gpu_bvh;
 
                 shady::ExtraKernelOptions launch_options = {
@@ -368,7 +374,7 @@ int main(int argc, char** argv) {
                         if (use_bvh)
                             ntris = 0;
                         int nmats = model.materials.size();
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), nmats, model.materials.data(), bvh.host_bvh, nframe, accum, render_mode);
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, pt_max_depth);
                     }
                 }
                 auto now = time();

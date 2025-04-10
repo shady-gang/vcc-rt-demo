@@ -11,9 +11,9 @@ struct DirSample {
 };
 
 // Probability density function for uniform sphere sampling
-RA_FUNCTION auto uniform_sphere_pdf() -> float { return 1.0f / (4.0f * M_PI); }
+inline RA_FUNCTION auto uniform_sphere_pdf() -> float { return 1.0f / (4.0f * M_PI); }
 
-RA_FUNCTION auto make_dir_sample(float c, float s, float phi, float pdf) -> DirSample {
+inline RA_FUNCTION auto make_dir_sample(float c, float s, float phi, float pdf) -> DirSample {
     auto x = s * cosf(phi);
     auto y = s * sinf(phi);
     auto z = c;
@@ -24,7 +24,7 @@ RA_FUNCTION auto make_dir_sample(float c, float s, float phi, float pdf) -> DirS
 }
 
 // Samples a direction uniformly on a sphere
-RA_FUNCTION auto sample_uniform_sphere(float u, float v) -> DirSample {
+inline RA_FUNCTION auto sample_uniform_sphere(float u, float v) -> DirSample {
     auto c = 2.0f * v - 1.0f;
     auto s = sqrtf(1.0f - c * c);
     auto phi = 2.0f * M_PI * u;
@@ -32,9 +32,9 @@ RA_FUNCTION auto sample_uniform_sphere(float u, float v) -> DirSample {
 }
 
 // Probability density function for cosine weighted hemisphere sampling
-RA_FUNCTION auto cosine_hemisphere_pdf(float c) -> float { return c * (1.0f / M_PI); }
+inline RA_FUNCTION auto cosine_hemisphere_pdf(float c) -> float { return c * (1.0f / M_PI); }
 
-RA_FUNCTION auto sample_cosine_hemisphere(float u, float v) -> DirSample {
+inline RA_FUNCTION auto sample_cosine_hemisphere(float u, float v) -> DirSample {
     auto c = sqrtf(1.0f - v);
     auto s = sqrtf(v);
     auto phi = 2.0f * M_PI * u;

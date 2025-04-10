@@ -1,6 +1,8 @@
 #include "renderer.h"
 #include "colormap.h"
+#include "rendercontext.h"
 #include "ao.h"
+#include "pt.h"
 
 RA_FUNCTION uint32_t pack_color(vec3 color) {
     color = clamp(color, vec3(0.0f), vec3(1.0f));
@@ -129,8 +131,7 @@ RA_RENDERER_SIGNATURE {
             break;
         }
         case AO: {
-            vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            color = pathtrace_ao(&rng, bvh, r);
+            vec3 color = pathtrace_ao(&rng, bvh, r);
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
@@ -142,8 +143,16 @@ RA_RENDERER_SIGNATURE {
             break;
         }
         case PT: {
-            vec3 color = vec3(0.0f, 0.5f, 1.0f);
-            color = clamp(pathtrace(&rng, bvh, r, 0, vec3(1.0f), 1.0f, 2, materials), vec3(0.0), vec3(9999.0f));
+            RenderContext ctx {
+                .primitives = bvh.tris,
+                .materials = materials,
+                .emitters = emitters,
+                .bvh = &bvh,
+
+                .max_depth = max_depth,
+            };
+
+            vec3 color = clamp(pathtrace(&rng, r, 0, vec3(1.0f), 1.0f, ctx), vec3(0.0), vec3(9999.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
