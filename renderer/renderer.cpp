@@ -131,7 +131,7 @@ RA_RENDERER_SIGNATURE {
             break;
         }
         case AO: {
-            vec3 color = pathtrace_ao(&rng, bvh, r);
+            vec3 color = pathtrace_ao(&rng, bvh, triangles, r);
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
@@ -142,14 +142,17 @@ RA_RENDERER_SIGNATURE {
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
             break;
         }
-        case PT: {
+        case PT:
+        case PT_NEE: {
             RenderContext ctx {
                 .primitives = triangles,
                 .materials = materials,
+                .num_lights = nlights, // Note: there is always an evironment map (but maybe black though)
                 .emitters = emitters,
                 .bvh = &bvh,
 
                 .max_depth = max_depth,
+                .enable_nee = (mode == PT_NEE) && nlights > 1
             };
 
             vec3 color = clamp(pathtrace(&rng, r, 0, vec3(1.0f), 1.0f, ctx), vec3(0.0), vec3(9999.0f));

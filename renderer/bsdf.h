@@ -20,9 +20,11 @@ struct BsdfSample {
 };
 
 RA_FUNCTION vec3 eval_diffuse(vec3 in_dir, vec3 out_dir, vec3 albedo);
+RA_FUNCTION float pdf_diffuse(vec3 in_dir, vec3 out_dir);
 RA_FUNCTION BsdfSample sample_diffuse(RNGState* rng, vec3 out_dir, vec3 albedo);
 
 RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat);
+RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat);
 RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, const Material& mat);
 
 }

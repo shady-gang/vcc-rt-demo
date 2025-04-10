@@ -62,6 +62,25 @@ inline RA_FUNCTION auto randf(RNGState* rnd) -> float {
     //return std::bit_cast<float>() - 1.0f;
 }
 
+// Sample [0, max] uniformly
+inline RA_FUNCTION auto randi_max(RNGState* rnd, uint32_t max) -> uint32_t {
+    const uint32_t rng_range = 0xFFFFFFFF;        
+    if (rng_range == max) {
+        return randi(rnd);
+    } else {
+        const uint32_t erange  = max + 1;
+        const uint32_t scaling = rng_range / erange;
+        const uint32_t past    = erange * scaling;
+        
+        uint32_t ret = randi(rnd);
+        while (ret >= past) {
+            ret = randi(rnd);
+        }
+    
+        return ret / scaling;
+    }
+}
+
 /*RA_FUNCTION auto randf(RNGState* rnd) -> float {
     // Assumes IEEE 754 floating point format
     auto x = randi(rnd);

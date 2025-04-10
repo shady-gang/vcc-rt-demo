@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
     //compiler_config.per_thread_stack_size = 512;
     //compiler_config.per_thread_stack_size = 1024;
     //compiler_config.per_thread_stack_size = 1564;
-    compiler_config.per_thread_stack_size = 2048+512;
+    compiler_config.per_thread_stack_size = 2048;// TODO
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -372,6 +372,8 @@ int main(int argc, char** argv) {
                 args.push_back(&ptr_tris);
                 uint64_t ptr_mats = shd_rn_get_buffer_device_pointer(model.materials_gpu);
                 args.push_back(&ptr_mats);
+                int nlights = model.emitters.size();
+                args.push_back(&nlights);
                 uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
                 args.push_back(&ptr_emitters);
                 args.push_back(&bvh.gpu_bvh);
@@ -396,8 +398,8 @@ int main(int argc, char** argv) {
                         int ntris = model.triangles.size();
                         if (use_bvh)
                             ntris = 0;
-                        int nmats = model.materials.size();
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, cmd_args.max_depth);
+                        int nlights = model.emitters.size();
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), nlights, model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, cmd_args.max_depth);
                     }
                 }
                 auto now = time();

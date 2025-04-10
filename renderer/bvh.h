@@ -28,10 +28,17 @@ struct BVH {
 #endif
     Triangle* tris;
 
-    RA_METHOD bool intersect(Ray ray, Hit& hit, int* iteration_count);
-    RA_METHOD bool intersect(Ray ray, Hit& hit) { 
+    RA_METHOD bool intersect(Ray ray, Hit& hit, bool return_early, int* iteration_count);
+    RA_METHOD bool intersect(Ray ray, Hit& hit, int* iteration_count) {
+        return intersect(ray, hit, false, iteration_count);
+    }
+    RA_METHOD bool intersect(Ray ray, Hit& hit, bool return_early = false) { 
         int ic;
-        return intersect(ray, hit, &ic);
+        return intersect(ray, hit, return_early, &ic);
+    }
+    RA_METHOD bool intersect_shadow(Ray ray) { 
+        Hit hit;
+        return intersect(ray, hit, true);
     }
 };
 

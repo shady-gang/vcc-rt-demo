@@ -2,6 +2,7 @@
 #define RA_PRIMITIVES
 
 #include "ra_math.h"
+#include "random.h"
 
 struct Ray {
     vec3 origin;
@@ -53,6 +54,8 @@ struct Triangle {
     RA_METHOD vec3 get_position(vec2 bary) const;
     RA_METHOD vec3 get_vertex_normal(vec2 bary) const;
     RA_METHOD vec2 get_texcoords(vec2 bary) const;
+    RA_METHOD float get_area() const;
+    RA_METHOD vec2 sample_point_on_surface(RNGState* rng);
 };
 
 #endif

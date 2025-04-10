@@ -1,6 +1,6 @@
 #include "bvh.h"
 
-RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, int* iteration_count) {
+RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, bool return_early, int* iteration_count) {
     int stack[32];
     int stack_size = 0;
 
@@ -31,6 +31,8 @@ RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, int* iteration_count) {
                     size_t tindex = iindex;
 #endif
                     if (tris[tindex].intersect(ray, hit)) {
+                        if (return_early)
+                            return true;
                         hit_something = true;
                         ray.tmax = hit.t;
                     }

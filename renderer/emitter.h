@@ -4,6 +4,7 @@
 #include "ra_math.h"
 
 struct Emitter {
+    /// @brief Emission value with pdf already applied
     vec3 emission;
     int prim_id;
 };

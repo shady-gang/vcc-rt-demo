@@ -177,3 +177,16 @@ RA_METHOD vec3 Triangle::get_vertex_normal(vec2 bary) const {
 RA_METHOD vec2 Triangle::get_texcoords(vec2 bary) const {
     return interpolateBarycentric(bary, t0, t1, t2);
 }
+
+RA_METHOD float Triangle::get_area() const {
+    const vec3 edge1 = v1 - v0;
+    const vec3 edge2 = v2 - v0;
+    const vec3 n = edge1.cross(edge2);
+    return length(n) / 2;
+}
+
+RA_METHOD vec2 Triangle::sample_point_on_surface(RNGState* rng) {
+    float u = randf(rng);
+    float v = randf(rng);
+    return u + v > 1 ? vec2(1 - u, 1 - v) : vec2(u, v);
+}

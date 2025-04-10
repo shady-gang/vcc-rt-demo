@@ -4,5 +4,5 @@
 #include "bvh.h"
 #include "random.h"
 
-RA_FUNCTION vec3 pathtrace_ao(RNGState* rng, BVH& bvh, Ray ray);
+RA_FUNCTION vec3 pathtrace_ao(RNGState* rng, BVH& bvh, const Triangle* tris, Ray ray);
 #endif

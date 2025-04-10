@@ -150,8 +150,11 @@ Model::Model(const char* path, Device* device) {
             };
             tris.push_back(tri);
 
-            if (emissive_materials.contains(mat_id))
-                emitters.push_back(Emitter{ .emission = vec3{materials[mat_id].emission[0], materials[mat_id].emission[1], materials[mat_id].emission[2]}, .prim_id = tri.prim_id});
+            if (emissive_materials.contains(mat_id)) {
+                float area = tri.get_area();
+                if (area > 0)
+                    emitters.push_back(Emitter{ .emission = vec3{materials[mat_id].emission[0], materials[mat_id].emission[1], materials[mat_id].emission[2]} / area, .prim_id = tri.prim_id});
+            }
         }
     }
 
