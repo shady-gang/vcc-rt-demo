@@ -134,6 +134,9 @@ int main(int argc, char** argv) {
             pt_max_depth = atoi(argv[++i]);
             continue;
         }
+        // Skip options if not caught
+        if (strcmp(argv[i], "--") == 0)
+            continue;
         model_filename = argv[i];
     }
 

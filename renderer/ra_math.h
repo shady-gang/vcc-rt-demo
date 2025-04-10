@@ -81,6 +81,10 @@ inline RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
     return v;
 }
 
+inline RA_FUNCTION float color_average(vec3 color) {
+    return (color[0] + color[1] + color[2]) / 3;
+}
+
 inline RA_FUNCTION float color_luminance(vec3 color) {
     return color[0] * 0.2126f + color[1] * 0.7152f + color[2] * 0.0722f;
 }
