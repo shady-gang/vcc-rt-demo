@@ -31,8 +31,10 @@ RA_METHOD bool BVH::intersect(Ray ray, Hit& hit, bool return_early, int* iterati
                     size_t tindex = iindex;
 #endif
                     if (tris[tindex].intersect(ray, hit)) {
-                        if (return_early)
+                        if (return_early) {
+                            *iteration_count = k;
                             return true;
+                        }
                         hit_something = true;
                         ray.tmax = hit.t;
                     }
