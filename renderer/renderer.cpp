@@ -71,7 +71,10 @@ RA_RENDERER_SIGNATURE {
         case FACENORMAL: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
 
-            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            //Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            Hit nearest_hit { };
+            nearest_hit.t = r.tmin;
+            nearest_hit.prim_id = -1;
             int iter;
             bvh.intersect(r, nearest_hit, &iter);
 
@@ -85,7 +88,9 @@ RA_RENDERER_SIGNATURE {
         case VERTEXNORMAL: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
 
-            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            Hit nearest_hit { };
+            nearest_hit.t = r.tmin;
+            nearest_hit.prim_id = -1;
             int iter;
             bvh.intersect(r, nearest_hit, &iter);
 
@@ -99,7 +104,10 @@ RA_RENDERER_SIGNATURE {
         case TEXCOORDS: {
             vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
-            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            //Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            Hit nearest_hit { };
+            nearest_hit.t = r.tmin;
+            nearest_hit.prim_id = -1;
             int iter;
             bvh.intersect(r, nearest_hit, &iter);
 
@@ -113,7 +121,10 @@ RA_RENDERER_SIGNATURE {
         case PRIM_IDS: {
             vec3 color = vec3(0.0f, 0.0f, 0.0f);
 
-            Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            //Hit nearest_hit = { .t = r.tmin, .prim_id = -1 };
+            Hit nearest_hit { };
+            nearest_hit.t = r.tmin;
+            nearest_hit.prim_id = -1;
             int iter;
             bvh.intersect(r, nearest_hit, &iter);
 

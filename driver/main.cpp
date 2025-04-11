@@ -108,12 +108,17 @@ struct CommandArguments {
     std::optional<float> camera_speed;
     std::optional<vec3> camera_eye;
     std::optional<vec2> camera_rotation;
+    std::optional<float> camera_fov;
 };
 
 int main(int argc, char** argv) {
     char* model_filename = nullptr;
 
     int WIDTH = 832*2, HEIGHT = 640*2;
+
+    shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
+    shady::shd_parse_compiler_config_args(&compiler_config, &argc, argv);
+
     CommandArguments cmd_args;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
@@ -158,6 +163,11 @@ int main(int argc, char** argv) {
             rot.x = strtof(argv[++i], nullptr);
             rot.y = strtof(argv[++i], nullptr);
             cmd_args.camera_rotation = rot;
+            continue;
+        }
+        if (strcmp(argv[i], "--fov") == 0) {
+            vec2 rot;
+            cmd_args.camera_fov = strtof(argv[++i], nullptr);
             continue;
         }
         model_filename = argv[i];
@@ -227,20 +237,21 @@ int main(int argc, char** argv) {
             }
             accum = 0;
         } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
-            printf("--position %f %f %f --rotation %f %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch);
+            printf("--position %f %f %f --rotation %f %f --fov %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch, (float) camera.fov);
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_MINUS) {
+            camera.fov -= 0.02f;
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_EQUAL) {
+            camera.fov += 0.02f;
         }
     });
 
     shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = true;
     runtime_config.dump_spv = true;
-    shady::CompilerConfig compiler_config = shady::shd_default_compiler_config();
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
-    //compiler_config.per_thread_stack_size = 512;
-    //compiler_config.per_thread_stack_size = 1024;
-    //compiler_config.per_thread_stack_size = 1564;
-    compiler_config.per_thread_stack_size = 2048;// TODO
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -293,7 +304,7 @@ int main(int argc, char** argv) {
 
     // Setup camera
     camera = model.loaded_camera;
-    
+
     if (cmd_args.camera_speed.has_value()) {
         camera_state.fly_speed = *cmd_args.camera_speed;
     } else {
@@ -303,11 +314,14 @@ int main(int argc, char** argv) {
 
     if (cmd_args.camera_eye.has_value())
         camera.position = *cmd_args.camera_eye;
-    
+
     if (cmd_args.camera_rotation.has_value()){
         camera.rotation.yaw = cmd_args.camera_rotation->x;
         camera.rotation.pitch = cmd_args.camera_rotation->y;
     }
+
+    if (cmd_args.camera_fov)
+        camera.fov = *cmd_args.camera_fov;
 
     printf("Loaded Camera: eye=(%f, %f, %f) rot=(%f, %f)\n", (float)camera.position.x, (float)camera.position.y, (float)camera.position.z, (float)camera.rotation.yaw, (float)camera.rotation.pitch);
 

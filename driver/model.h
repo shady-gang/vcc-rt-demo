@@ -16,10 +16,10 @@ struct Model {
     // int triangles_count = 0;
     // Triangle* triangles_host;
     std::vector<Triangle> triangles;
-    shady::Buffer* triangles_gpu;
+    shady::Buffer* triangles_gpu = nullptr;
 
     std::vector<Material> materials;
-    shady::Buffer* materials_gpu;
+    shady::Buffer* materials_gpu = nullptr;
 
     // Note: The first entry is the environment constant color
     std::vector<Emitter> emitters;
