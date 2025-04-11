@@ -209,11 +209,14 @@ int main(int argc, char** argv) {
 
     for (size_t i = 0; i < caps.device_extensions_count; i++) {
         selected_physical_device->enable_extension_if_present(caps.device_extensions[i]);
-        selected_physical_device->enable_features_if_present(caps.features.base.features);
-        walk_pNext_chain((VkBaseInStructure*) caps.features.base.pNext, [&](VkBaseInStructure* s) {
-            selected_physical_device->enable_extension_features_if_present(s);
-        });
     }
+    selected_physical_device->enable_features_if_present(caps.features.base.features);
+    walk_pNext_chain((VkBaseInStructure*) caps.features.base.pNext, [&](VkBaseInStructure* s) {
+        auto t = s->pNext;
+        s->pNext = nullptr;
+        selected_physical_device->enable_extension_features_if_present(*s);
+        //s->pNext = t;
+    });
 
     imr::Device imr_device(context, *selected_physical_device);
     imr::Swapchain swapchain(imr_device, window);
