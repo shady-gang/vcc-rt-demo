@@ -60,7 +60,7 @@ RA_FUNCTION static float sign(float f) {
 using namespace nasl;
 
 RA_CONSTANT float epsilon = 1e-4f;
-RA_CONSTANT float pi = 3.141592f;
+// RA_CONSTANT float pi = 3.141592f;
 
 /// @brief Barycentric interpolation ([0,0] returns a, [1,0] returns b, and
 /// [0,1] returns c).

@@ -4,7 +4,7 @@
 namespace shading {
 
 RA_FUNCTION vec3 eval_diffuse(vec3 in_dir, vec3 out_dir, vec3 albedo) {
-    return albedo * fmaxf(in_dir.z, 0) / pi;
+    return albedo * fmaxf(in_dir.z, 0) / M_PI;
 }
 
 RA_FUNCTION float pdf_diffuse(vec3 in_dir, vec3 out_dir) {

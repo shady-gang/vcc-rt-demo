@@ -165,7 +165,7 @@ Model::Model(const char* path, Device* device) {
     // --------------- Lights
     if (emitters.empty() || (emitters.size() == 1 && color_average(emitters.at(0).emission) == 0)) {
         printf("No light given for scene. Adding default environment light.\n");
-        const Emitter env{ .emission = vec3(10/pi), .prim_id = -1 };
+        const Emitter env{ .emission = vec3(10/M_PI), .prim_id = -1 };
         if(emitters.empty())
             emitters.push_back(env);
         else
