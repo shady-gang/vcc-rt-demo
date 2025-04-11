@@ -108,6 +108,7 @@ struct CommandArguments {
     std::optional<float> camera_speed;
     std::optional<vec3> camera_eye;
     std::optional<vec2> camera_rotation;
+    std::optional<float> camera_fov;
 };
 
 int main(int argc, char** argv) {
@@ -162,6 +163,11 @@ int main(int argc, char** argv) {
             rot.x = strtof(argv[++i], nullptr);
             rot.y = strtof(argv[++i], nullptr);
             cmd_args.camera_rotation = rot;
+            continue;
+        }
+        if (strcmp(argv[i], "--fov") == 0) {
+            vec2 rot;
+            cmd_args.camera_fov = strtof(argv[++i], nullptr);
             continue;
         }
         model_filename = argv[i];
@@ -231,7 +237,13 @@ int main(int argc, char** argv) {
             }
             accum = 0;
         } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
-            printf("--position %f %f %f --rotation %f %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch);
+            printf("--position %f %f %f --rotation %f %f --fov %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch, (float) camera.fov);
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_MINUS) {
+            camera.fov -= 0.02f;
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_EQUAL) {
+            camera.fov += 0.02f;
         }
     });
 
@@ -307,6 +319,9 @@ int main(int argc, char** argv) {
         camera.rotation.yaw = cmd_args.camera_rotation->x;
         camera.rotation.pitch = cmd_args.camera_rotation->y;
     }
+
+    if (cmd_args.camera_fov)
+        camera.fov = *cmd_args.camera_fov;
 
     printf("Loaded Camera: eye=(%f, %f, %f) rot=(%f, %f)\n", (float)camera.position.x, (float)camera.position.y, (float)camera.position.z, (float)camera.rotation.yaw, (float)camera.rotation.pitch);
 
