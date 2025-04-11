@@ -15,10 +15,10 @@ struct Model {
     // int triangles_count = 0;
     // Triangle* triangles_host;
     std::vector<Triangle> triangles;
-    shady::Buffer* triangles_gpu;
+    shady::Buffer* triangles_gpu = nullptr;
 
     std::vector<Material> materials;
-    shady::Buffer* materials_gpu;
+    shady::Buffer* materials_gpu = nullptr;
 
     bool has_camera;
     Camera loaded_camera;

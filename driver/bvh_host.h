@@ -18,10 +18,10 @@ struct BVHHost {
 
     BVH host_bvh;
     BVH gpu_bvh;
-    shady::Buffer* gpu_nodes;
+    shady::Buffer* gpu_nodes = nullptr;
 #ifdef BVH_REORDER_TRIS
-    shady::Buffer* gpu_reordered_tris;
+    shady::Buffer* gpu_reordered_tris = nullptr;
 #else
-    shady::Buffer* gpu_indices;
+    shady::Buffer* gpu_indices = nullptr;
 #endif
 };
