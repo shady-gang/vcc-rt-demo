@@ -160,10 +160,26 @@ RA_METHOD bool Triangle::intersect(Ray ray, Hit& hit) {
     //its.pdf            = 0;
 }
 
+/// Ensure a stable triangle normal using all three edges instead of only two
+inline RA_FUNCTION auto compute_stable_triangle_normal(vec3 e1, vec3 e2, vec3 e3) -> vec3 {
+    const float x12 = e1.z * e2.y; const float y12 = e1.x * e2.z; const float z12 = e1.y * e2.x;
+    const float x23 = e2.z * e3.y; const float y23 = e2.x * e3.z; const float z23 = e2.y * e3.x;
+
+    vec3 c12 = vec3(e1.y * e2.z - x12, e1.z * e2.x - y12, e1.x * e2.y - z12);
+    vec3 c23 = vec3(e2.y * e3.z - x23, e2.z * e3.x - y23, e2.x * e3.y - z23);
+
+    return vec3(
+        (fabs(x12) < fabs(x23)) ? c12.x : c23.x,
+        (fabs(y12) < fabs(y23)) ? c12.y : c23.y,
+        (fabs(z12) < fabs(z23)) ? c12.z : c23.z
+    );
+}
+
 RA_METHOD vec3 Triangle::get_face_normal() const {
-    const vec3 edge1 = v1 - v0;
-    const vec3 edge2 = v2 - v0;
-    return normalize(edge1.cross(edge2));
+    const vec3 e1 = v2 - v0;
+    const vec3 e2 = v0 - v1;
+    const vec3 e3 = v1 - v2;
+    return normalize(compute_stable_triangle_normal(e1, e2, e3));
 }
 
 RA_METHOD vec3 Triangle::get_position(vec2 bary) const {
@@ -179,9 +195,10 @@ RA_METHOD vec2 Triangle::get_texcoords(vec2 bary) const {
 }
 
 RA_METHOD float Triangle::get_area() const {
-    const vec3 edge1 = v1 - v0;
-    const vec3 edge2 = v2 - v0;
-    const vec3 n = edge1.cross(edge2);
+    const vec3 e1 = v2 - v0;
+    const vec3 e2 = v0 - v1;
+    const vec3 e3 = v1 - v2;
+    const vec3 n  = compute_stable_triangle_normal(e1, e2, e3);
     return length(n) / 2;
 }
 
