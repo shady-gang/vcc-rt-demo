@@ -27,6 +27,10 @@ RA_FUNCTION vec3 eval_conductor(vec3 in_dir, vec3 out_dir, vec3 albedo, vec3 spe
 RA_FUNCTION float pdf_conductor(vec3 in_dir, vec3 out_dir, float ior, float kappa, float alpha);
 RA_FUNCTION BsdfSample sample_conductor(RNGState* rng, vec3 out_dir, vec3 albedo, vec3 specular, float ior, float kappa, float alpha);
 
+RA_FUNCTION vec3 eval_perfect_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 transmission, float ior);
+RA_FUNCTION float pdf_perfect_dielectric(vec3 in_dir, vec3 out_dir, float ior);
+RA_FUNCTION BsdfSample sample_perfect_dielectric(RNGState* rng, vec3 out_dir, vec3 specular, vec3 transmission, float ior);
+
 RA_FUNCTION vec3 eval_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 transmission, float ior, float alpha);
 RA_FUNCTION float pdf_dielectric(vec3 in_dir, vec3 out_dir, float ior, float alpha);
 RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specular, vec3 transmission, float ior, float alpha);

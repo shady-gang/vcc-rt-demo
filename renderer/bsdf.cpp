@@ -93,6 +93,49 @@ RA_FUNCTION BsdfSample sample_conductor(RNGState* rng, vec3 out_dir, vec3 albedo
     };
 }
 
+RA_FUNCTION vec3 eval_perfect_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 transmission, float ior) {
+    return vec3(0);
+}
+
+RA_FUNCTION float pdf_perfect_dielectric(vec3 in_dir, vec3 out_dir, float ior) {
+    return 0;
+}
+
+RA_FUNCTION BsdfSample sample_perfect_dielectric(RNGState* rng, vec3 out_dir, vec3 specular, vec3 transmission, float ior) {
+    float cos_o = out_dir.z;
+
+    if (fabs(cos_o) <= __FLT_EPSILON__) return BsdfSample {.pdf=0};
+
+    bool flip = cos_o < 0;
+    float eta = flip ? ior : 1 / ior;
+    if (flip) {
+        cos_o   = -cos_o;
+        out_dir = -out_dir;
+    }
+
+    auto fterm = fresnel::fresnel(eta, cos_o);
+
+    vec3 in_dir;
+    if (randf(rng) > fterm.factor) {
+        // Refraction
+        in_dir = refract(out_dir, vec3(0,0,1), eta, cos_o, fterm.cos_t);
+    } else {
+        // Reflection
+        in_dir = reflect(out_dir, vec3(0,0,1));
+    }
+
+    float cos_i = in_dir.z;
+    bool is_transmission = cos_i * cos_o < 0;
+    // Note: no adjoint
+
+    return BsdfSample {
+        .dir   = flip ? -in_dir : in_dir,
+        .pdf   = 1,
+        .color = eval_dielectric(flip ? -in_dir : in_dir, flip ? -out_dir : out_dir, specular, transmission, ior, 0.05f),
+        .eta   = is_transmission ? eta : 1
+    };
+}
+
 // ----------------------------- Dielectric
 RA_FUNCTION vec3 eval_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 transmission, float ior, float alpha) {
     float cos_o = out_dir.z;
@@ -157,7 +200,7 @@ RA_FUNCTION float pdf_dielectric(vec3 in_dir, vec3 out_dir, float ior, float alp
 
     float f = fresnel::fresnel(eta, cos_h_o).factor;
 
-    float pdf = microfacet::pdf_vndf_ggx(out_dir, h, alpha, alpha);
+    float pdf = 1;//microfacet::pdf_vndf_ggx(out_dir, h, alpha, alpha);
     if (pdf <= __FLT_EPSILON__) return 0;
 
     if (is_transmission) {
@@ -233,6 +276,9 @@ RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specu
 
 // ----------------------------- Material ~ Principled
 RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
+    if (mat.transmission > 0)
+        return vec3(0);
+
     vec3 color = vec3(0);
     if (mat.metallic > 0)
         color = color + mat.metallic * eval_conductor(in_dir, out_dir, mat.base_color, mat.base_color, 1, 0, mat.roughness);
@@ -245,7 +291,10 @@ RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
     return color;
 }
 
-RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {    
+RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
+    if (mat.transmission > 0)
+        return 0;
+
     float pdf = 0;
     if (mat.metallic > 0)
         pdf += mat.metallic * pdf_conductor(in_dir, out_dir, 1, 0, mat.roughness);
@@ -259,6 +308,9 @@ RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
 }
 
 RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, const Material& mat) {
+    if (mat.transmission > 0)
+        return sample_perfect_dielectric(rng, out_dir, mat.base_color, mat.base_color, mat.ior);
+
     BsdfSample sample;
     if (randf(rng) < mat.metallic)
         sample = sample_conductor(rng, out_dir, mat.base_color, mat.base_color, 1, 0, mat.roughness);
