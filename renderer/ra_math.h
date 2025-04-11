@@ -70,17 +70,6 @@ RA_FUNCTION T interpolateBarycentric(const vec2 &bary, const T &a, const T &b,
     return a * (1 - bary.x - bary.y) + b * bary.x + c * bary.y;
 }
 
-/*static Vertex interpolate(const vec2 &bary, const Vertex &a,
-                          const Vertex &b, const Vertex &c) {
-    return {
-        .position = interpolateBarycentric(
-            bary, a.position, b.position, c.position),
-        .uv = interpolateBarycentric(bary, a.uv, b.uv, c.uv),
-        .normal =
-        interpolateBarycentric(bary, a.normal, b.normal, c.normal),
-    };
-}*/
-
 inline RA_FUNCTION float clampf(float v, float min, float max) {
     return fminf(max, fmaxf(v, min));
 }
@@ -90,6 +79,10 @@ inline RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
     v.y = fminf(max.y, fmaxf(v.y, min.y));
     v.z = fminf(max.z, fmaxf(v.z, min.z));
     return v;
+}
+
+inline RA_FUNCTION float color_average(vec3 color) {
+    return (color[0] + color[1] + color[2]) / 3;
 }
 
 inline RA_FUNCTION float color_luminance(vec3 color) {

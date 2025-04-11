@@ -18,11 +18,11 @@ RA_FUNCTION BsdfSample sample_diffuse(RNGState* rng, vec3 out_dir, vec3 albedo) 
     };
 }
 
-RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, Material* mat) {
-    return eval_diffuse(in_dir, out_dir, mat->base_color);
+RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
+    return eval_diffuse(in_dir, out_dir, mat.base_color);
 }
 
-RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, Material* mat) {
-    return sample_diffuse(rng, out_dir, mat->base_color);
+RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, const Material& mat) {
+    return sample_diffuse(rng, out_dir, mat.base_color);
 }
 }
