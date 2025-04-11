@@ -89,4 +89,15 @@ inline RA_FUNCTION float color_luminance(vec3 color) {
     return color[0] * 0.2126f + color[1] * 0.7152f + color[2] * 0.0722f;
 }
 
+inline RA_FUNCTION vec3 reflect(vec3 v, vec3 n) {
+    return normalize(n * 2 * n.dot(v) - v);
+}
+
+inline RA_FUNCTION vec3 refract(vec3 v, vec3 n, float eta, float cos_i, float cos_t) {
+    return normalize(n * (eta * cos_i - cos_t) - v * eta);
+}
+
+inline RA_FUNCTION vec3 faceforward(vec3 n, vec3 i) {
+    return i.dot(n) > 0 ? -n : n;
+}
 #endif

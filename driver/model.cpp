@@ -54,17 +54,24 @@ Model::Model(const char* path, Device* device) {
                 base_color = aiColor3D(1.0f, 0.0f, 1.0f);
         }
 
-        float roughness;
+        float roughness = 1;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness))
             roughness = 1;
 
-        float metallic;
+        float metallic = 0;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_METALLIC_FACTOR, metallic))
             metallic = 0;
 
-        float ior = 1;
+        float specular = 0;
+        aiColor3D specularColor;
+        if (AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_SPECULAR, specularColor)) {
+            specular = color_average(vec3(specularColor.r, specularColor.g, specularColor.b));
+        } else{
+            if (AI_SUCCESS != mat->Get(AI_MATKEY_SPECULAR_FACTOR, specular))
+                specular = 0;
+        }
 
-        float transmission;
+        float transmission = 0;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission))
             transmission = 0;
 
@@ -82,9 +89,9 @@ Model::Model(const char* path, Device* device) {
 
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
-            .roughness = roughness,
+            .roughness = fmaxf(roughness * roughness, 1e-4f), // We store squared version
             
-            .ior = ior,
+            .ior = 1.50f,//(2/(1-sqrtf(0.08f * specular))-1),
             .metallic = metallic,
             .transmission = transmission,
             
@@ -94,12 +101,12 @@ Model::Model(const char* path, Device* device) {
 
     if (materials.empty()) {
         printf("Scene has no materials. Default to diffuse\n");
-        materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1});
+        materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1, .ior = 1, .metallic = 0, .transmission = 0, .emission = vec3(0)});
     } else {
         printf("Loaded %zu materials\n", this->materials.size());
     }
     for (const auto& mat: materials)
-        printf("MAT (%f,%f,%f) r=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness);
+        printf("MAT c=(%f,%f,%f) r=%f, m=%f, n=%f, t=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness, mat.metallic, mat.ior, mat.transmission);
     offload(device, materials, materials_gpu);
 
     // --------------- Triangles

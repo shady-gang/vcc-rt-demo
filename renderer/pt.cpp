@@ -76,7 +76,6 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, f
         vec3 contrib = vec3(0);
 
         vec3 n     = tri.get_vertex_normal(hit.primary);
-             n     = ray.dir.dot(n) > 0 ? -n : n; // Ensure normal is facing forward
         vec3 p     = tri.get_position(hit.primary);
         vec3 fn    = tri.get_face_normal();
         auto frame = shading::make_shading_frame(n);
@@ -102,6 +101,8 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, f
 
         // Next bounce
         const auto sample = shading::sample_material(rng, shading::to_local(-ray.dir, frame), mat);
+        if (sample.pdf <= __FLT_EPSILON__)
+            return contrib;
 
         // - Handle rr
         float rr = compute_rr_factor(sample.color * throughput, depth);
