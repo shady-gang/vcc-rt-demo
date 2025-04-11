@@ -29,7 +29,7 @@ typedef long int size_t;
 #define RA_METHOD
 #define RA_CONSTANT static
 RA_FUNCTION float copysignf(float a, float b) {
-    return sign(b) ? -fabs(a) : fabs(a);
+    return (b < 0.0f) ? -fabs(a) : fabs(a);
 }
 
 #elif __CUDACC__
