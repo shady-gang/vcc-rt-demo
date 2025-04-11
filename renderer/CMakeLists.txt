@@ -10,6 +10,7 @@ function(add_renderer_source)
     cmake_parse_arguments(PARSE_ARGV 0 PARAM "" "NAME;EXTENSION" "ARGS;INCLUDE")
     # prepare the .ll file for the runtime to eat
     list(TRANSFORM PARAM_INCLUDE PREPEND "-I")
+    #add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${PARAM_NAME}.ll COMMAND shady::vcc ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${PARAM_NAME}.${PARAM_EXTENSION} --target spirv --only-run-clang ${PARAM_INCLUDE} ${PARAM_ARGS} -o ${CMAKE_BINARY_DIR}/"${PARAM_NAME}.ll" "-DRA_USE_RT_PIPELINES=${RA_USE_RT_PIPELINES}" DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PARAM_NAME}.${PARAM_EXTENSION})
     add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${PARAM_NAME}.ll COMMAND shady::vcc ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${PARAM_NAME}.${PARAM_EXTENSION} --target spirv --only-run-clang ${PARAM_INCLUDE} ${PARAM_ARGS} -o ${CMAKE_BINARY_DIR}/"${PARAM_NAME}.ll" DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${PARAM_NAME}.${PARAM_EXTENSION})
     add_custom_target("${PARAM_NAME}_ll" DEPENDS "${CMAKE_BINARY_DIR}/${PARAM_NAME}.ll")
     add_dependencies(renderer "${PARAM_NAME}_ll")
@@ -20,6 +21,7 @@ function(add_renderer_source)
 endfunction()
 
 option(RA_ALL_IN_ONE_FILE "Whether to concatenate all the renderer files into one or compile them seperately." OFF)
+option(RA_USE_RT_PIPELINES "Use Vulkan Raytracing Pipelines" OFF)
 
 if (RA_ALL_IN_ONE_FILE)
     add_renderer_source(NAME all EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize INCLUDE ${NASL_INCLUDE})
@@ -43,3 +45,4 @@ target_include_directories(renderer_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(ra PRIVATE renderer renderer_host)
 target_compile_definitions(ra PRIVATE "RENDERER_LL_FILES=${RENDERER_LL_FILES_SEMI}")
+#target_compile_definitions(ra PRIVATE "RA_USE_RT_PIPELINES=${RA_USE_RT_PIPELINES}")

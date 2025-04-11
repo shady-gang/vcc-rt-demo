@@ -45,13 +45,22 @@ thread_local extern vec2 gl_GlobalInvocationID;
 
 #ifdef __SHADY__
 [[gnu::flatten]]
+#ifdef RA_USE_RT_PIPELINES
+ray_generation_shader
+#else
 compute_shader local_size(16, 16, 1)
+#endif
 #elif __CUDACC__
 __global__
 #endif
 RA_RENDERER_SIGNATURE {
+#ifdef RA_USE_RT_PIPELINES
+    int x = gl_LaunchIDEXT.x;
+    int y = gl_LaunchIDEXT.y;
+#else
     int x = gl_GlobalInvocationID.x;
     int y = gl_GlobalInvocationID.y;
+#endif
     if (x >= width || y >= height)
         return;
 
@@ -67,7 +76,9 @@ RA_RENDERER_SIGNATURE {
 
     Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(camera_scale[0]*dx, camera_scale[1]*dy, -1.0f))), 0, 99999 };
 
+    access_frame_buffer(fb, x, y, width, height) = pack_color(vec3(1, 1, 1));
     switch (mode) {
+        default:
         case FACENORMAL: {
             vec3 color = vec3(0.0f, 0.5f, 1.0f);
 
@@ -153,7 +164,7 @@ RA_RENDERER_SIGNATURE {
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
             break;
         }
-        case PT:
+        /*case PT:
         case PT_NEE: {
             RenderContext ctx {
                 .primitives = triangles,
@@ -176,7 +187,7 @@ RA_RENDERER_SIGNATURE {
             write_film(film, x, y, width, height, film_data);
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
             break;
-        }
+        }*/
     }
 }
 
