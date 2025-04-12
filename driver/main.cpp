@@ -211,20 +211,7 @@ int main(int argc, char** argv) {
         selected_physical_device->enable_extension_if_present(caps.device_extensions[i]);
     }
     selected_physical_device->enable_features_if_present(caps.features.base.features);
-    /*walk_pNext_chain((VkBaseInStructure*) caps.features.base.pNext, [&](VkBaseInStructure* s) {
-        auto t = s->pNext;
-        s->pNext = nullptr;
 
-        struct Bigly {
-            VkStructureType sType;
-            void* pNext;
-            VkBool32 arg[255];
-        };
-
-        Bigly cpped = *(Bigly*)s;
-        selected_physical_device->enable_extension_features_if_present(cpped);
-        //s->pNext = t;
-    });*/
     selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_extended_types);
     selected_physical_device->enable_extension_features_if_present(caps.features.buffer_device_address);
     selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_size_control);
@@ -266,10 +253,14 @@ int main(int argc, char** argv) {
     });
 
     shady::RunnerConfig runtime_config = {};
-    runtime_config.use_validation = true;
+    runtime_config.use_validation = false;
     runtime_config.dump_spv = true;
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
+#ifdef RA_USE_RT_PIPELINES
+    compiler_config.dynamic_scheduling = false;
+    compiler_config.use_rt_pipelines_for_calls = true;
+#endif
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -290,12 +281,7 @@ int main(int argc, char** argv) {
     }
     assert(device);
 
-    shady::TargetConfig target_config = shd_rn_get_device_target_config(device);
-#ifdef RA_USE_RT_PIPELINES
-    target_config.capabilities.native_fncalls = true;
-    target_config.capabilities.rt_pipelines = true;
-    compiler_config.dynamic_scheduling = false;
-#endif
+    shady::TargetConfig target_config = shd_rn_get_device_target_config(&compiler_config, device);
 
     std::string files = xstr(RENDERER_LL_FILES);
     shady::Module* mod = nullptr;

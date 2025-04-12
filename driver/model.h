@@ -23,7 +23,7 @@ struct Model {
 
     // Note: The first entry is the environment constant color
     std::vector<Emitter> emitters;
-    shady::Buffer* emitters_gpu;
+    shady::Buffer* emitters_gpu = nullptr;
 
     Camera loaded_camera;
 };
