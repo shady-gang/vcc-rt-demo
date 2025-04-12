@@ -33,8 +33,8 @@ inline RA_FUNCTION auto ndf_ggx(vec3 m, float alpha_u, float alpha_v) -> float {
     float kx = cosX / alpha_u;
     float ky = cosY / alpha_v;
     float k  = kx * kx + ky * ky + cosZ * cosZ;
-
-    float denom = M_PI * alpha_u * alpha_v * k * k;
+    
+    float denom = float(M_PI) * alpha_u * alpha_v * k * k;
     if (denom <= __FLT_EPSILON__)
         return 0;
     else
@@ -53,7 +53,7 @@ inline RA_FUNCTION auto sample_vndf_ggx(RNGState* rng, vec3 lN, float alpha_u, f
     float u0 = randf(rng);
     float u1 = randf(rng);
 
-    float phi = 2 * M_PI * u0;
+    float phi = 2 * float(M_PI) * u0;
     float z = (1 - u1) * (1 + sL.z) - sL.z;
     float sinTheta = sqrtf(clampf(1 - z * z, 0, 1));
     float x = sinTheta * cosf(phi);

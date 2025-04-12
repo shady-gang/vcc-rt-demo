@@ -8,7 +8,7 @@ namespace shading {
 // ----------------------------- Diffuse (doublesided)
 RA_FUNCTION vec3 eval_diffuse(vec3 in_dir, vec3 out_dir, vec3 albedo) {
     if (!is_same_hemisphere(in_dir, out_dir)) return vec3(0); // No tranmission
-    return albedo * fabs(in_dir.z) / M_PI;
+    return albedo * fabs(in_dir.z) / float(M_PI);
 }
 
 RA_FUNCTION float pdf_diffuse(vec3 in_dir, vec3 out_dir) {
