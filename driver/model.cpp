@@ -66,6 +66,18 @@ Model::Model(const char* path, Device* device) {
 
             int w, h, c;
             stbi_uc* data = stbi_load(base_color_tex_path.C_Str(), &w, &h, &c, 4);
+            
+            // Linearize
+            for(size_t i = 0; i < w * h * 4; ++i) {
+                float v = data[i] / 255.0f;
+                
+                if (v <= 0.04045f)
+                    v = v / 12.92f;
+                else
+                    v = powf((v + 0.055f) / 1.055f, 2.4f);
+
+                data[i] = v * 255;
+            }
 
             if (data != nullptr) {
                 // Copy to our big buffer... not super effective, but works
