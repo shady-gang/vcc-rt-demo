@@ -261,6 +261,9 @@ int main(int argc, char** argv) {
     compiler_config.dynamic_scheduling = false;
     compiler_config.use_rt_pipelines_for_calls = true;
 #endif
+#ifdef RA_USE_SCRATCH_PRIVATE
+    compiler_config.lower.use_scratch_for_private = true;
+#endif
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;

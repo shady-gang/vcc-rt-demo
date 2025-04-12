@@ -21,6 +21,7 @@ endfunction()
 
 option(RA_ALL_IN_ONE_FILE "Whether to concatenate all the renderer files into one or compile them seperately." OFF)
 option(RA_USE_RT_PIPELINES "Use Vulkan Raytracing Pipelines" OFF)
+option(RA_USE_SCRATCH_PRIVATE "Use scratch memory for the private stacks" OFF)
 
 if (RA_ALL_IN_ONE_FILE)
     add_renderer_source(NAME all EXTENSION cpp ARGS --std=c++20 -O3 -fno-slp-vectorize -fno-vectorize INCLUDE ${NASL_INCLUDE})
@@ -45,3 +46,4 @@ target_include_directories(renderer_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ra PRIVATE renderer renderer_host)
 target_compile_definitions(ra PRIVATE "RENDERER_LL_FILES=${RENDERER_LL_FILES_SEMI}")
 target_compile_definitions(ra PRIVATE $<$<BOOL:${RA_USE_RT_PIPELINES}>:-DRA_USE_RT_PIPELINES=1>)
+target_compile_definitions(ra PRIVATE $<$<BOOL:${RA_USE_SCRATCH_PRIVATE}>:-DRA_USE_SCRATCH_PRIVATE=1>)
