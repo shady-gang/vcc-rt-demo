@@ -7,10 +7,12 @@ namespace shading {
 
 // ----------------------------- Diffuse (doublesided)
 RA_FUNCTION vec3 eval_diffuse(vec3 in_dir, vec3 out_dir, vec3 albedo) {
+    if (!is_same_hemisphere(in_dir, out_dir)) return vec3(0); // No tranmission
     return albedo * fabs(in_dir.z) / M_PI;
 }
 
 RA_FUNCTION float pdf_diffuse(vec3 in_dir, vec3 out_dir) {
+    if (!is_same_hemisphere(in_dir, out_dir)) return 0; // No tranmission
     return cosine_hemisphere_pdf(fabs(in_dir.z));
 }
 
@@ -31,6 +33,8 @@ RA_FUNCTION BsdfSample sample_diffuse(RNGState* rng, vec3 out_dir, vec3 albedo) 
 
 // ----------------------------- Conductor (doublesided)
 RA_FUNCTION vec3 eval_conductor(vec3 in_dir, vec3 out_dir, vec3 albedo, vec3 specular, float ior, float kappa, float alpha) {
+    if (!is_same_hemisphere(in_dir, out_dir)) return vec3(0); // No tranmission
+
     float cos_o = fabs(out_dir.z);
     float cos_i = fabs(in_dir.z);
 
@@ -46,6 +50,8 @@ RA_FUNCTION vec3 eval_conductor(vec3 in_dir, vec3 out_dir, vec3 albedo, vec3 spe
 }
 
 RA_FUNCTION float pdf_conductor(vec3 in_dir, vec3 out_dir, float ior, float kappa, float alpha) {
+    if (!is_same_hemisphere(in_dir, out_dir)) return 0; // No tranmission
+
     float cos_o = fabs(out_dir.z);
     float cos_i = fabs(in_dir.z);
 
@@ -93,6 +99,7 @@ RA_FUNCTION BsdfSample sample_conductor(RNGState* rng, vec3 out_dir, vec3 albedo
     };
 }
 
+// ----------------------------- Perfect dielectric
 RA_FUNCTION vec3 eval_perfect_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 transmission, float ior) {
     return vec3(0);
 }
@@ -116,22 +123,21 @@ RA_FUNCTION BsdfSample sample_perfect_dielectric(RNGState* rng, vec3 out_dir, ve
     auto fterm = fresnel::fresnel(eta, cos_o);
 
     vec3 in_dir;
+    bool is_transmission;
     if (randf(rng) > fterm.factor) {
         // Refraction
         in_dir = refract(out_dir, vec3(0,0,1), eta, cos_o, fterm.cos_t);
+        is_transmission = true;
     } else {
         // Reflection
         in_dir = reflect(out_dir, vec3(0,0,1));
+        is_transmission = false;
     }
-
-    float cos_i = in_dir.z;
-    bool is_transmission = cos_i * cos_o < 0;
-    // Note: no adjoint
 
     return BsdfSample {
         .dir   = flip ? -in_dir : in_dir,
         .pdf   = 1,
-        .color = eval_dielectric(flip ? -in_dir : in_dir, flip ? -out_dir : out_dir, specular, transmission, ior, 0.05f),
+        .color = is_transmission ? transmission : specular,
         .eta   = is_transmission ? eta : 1
     };
 }
@@ -143,8 +149,6 @@ RA_FUNCTION vec3 eval_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 
 
     if (fabs(cos_o * cos_i) <= __FLT_EPSILON__) return vec3(0);
 
-    bool is_transmission = cos_o * cos_i < 0;
-
     bool flip = cos_o < 0;
     float eta = flip ? ior : 1 / ior;
     if (flip) {
@@ -155,6 +159,7 @@ RA_FUNCTION vec3 eval_dielectric(vec3 in_dir, vec3 out_dir, vec3 specular, vec3 
         in_dir = -in_dir;
     }
 
+    const bool is_transmission = !is_same_hemisphere(in_dir, out_dir);
     vec3 h = is_transmission ? normalize(in_dir + eta * out_dir) : normalize(in_dir + out_dir);
 
     float cos_h_o = h.dot(out_dir);
@@ -181,7 +186,6 @@ RA_FUNCTION float pdf_dielectric(vec3 in_dir, vec3 out_dir, float ior, float alp
 
     if (fabs(cos_o * cos_i) <= __FLT_EPSILON__) return 0;
 
-    bool is_transmission = cos_o * cos_i < 0;
     bool flip = cos_o < 0;
     float eta = flip ? ior : 1 / ior;
     if (flip) {
@@ -192,6 +196,7 @@ RA_FUNCTION float pdf_dielectric(vec3 in_dir, vec3 out_dir, float ior, float alp
         in_dir = -in_dir;
     }
 
+    const bool is_transmission = !is_same_hemisphere(in_dir, out_dir);
     vec3 h = is_transmission ? normalize(in_dir + eta * out_dir) : normalize(in_dir + out_dir);
 
     float cos_h_o = h.dot(out_dir);
@@ -200,7 +205,7 @@ RA_FUNCTION float pdf_dielectric(vec3 in_dir, vec3 out_dir, float ior, float alp
 
     float f = fresnel::fresnel(eta, cos_h_o).factor;
 
-    float pdf = 1;//microfacet::pdf_vndf_ggx(out_dir, h, alpha, alpha);
+    float pdf = microfacet::pdf_vndf_ggx(out_dir, h, alpha, alpha);
     if (pdf <= __FLT_EPSILON__) return 0;
 
     if (is_transmission) {
@@ -232,11 +237,13 @@ RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specu
     // Reject if on the wrong hemisphere
     if (cos_h_o <= __FLT_EPSILON__) return BsdfSample{.pdf = 0};
 
-    // auto fterm = fresnel::fresnel(eta, cos_h_o);
     auto fterm = fresnel::fresnel(eta, cos_h_o);
+    // float d = microfacet::eval_D(h, alpha, alpha);
 
     vec3 in_dir;
     float pdf;
+    bool is_transmission;
+    vec3 weight;
     if (randf(rng) > fterm.factor) {
         // Refraction
         in_dir = refract(out_dir, h, eta, cos_h_o, fterm.cos_t);
@@ -244,6 +251,11 @@ RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specu
 
         float jacob = microfacet::refractive_jacobian(eta, cos_h_i, cos_h_o);
         pdf = (1 - fterm.factor) * fabs(jacob);
+        is_transmission = true;
+        
+        float g1 = microfacet::g_1_smith(in_dir, alpha, alpha);
+        float a = g1 * (cos_h_o / cos_o) * (cos_h_o / cos_o);
+        weight = transmission * a;        
         
         // Reject if wrong hemisphere
         if (in_dir.z > 0)
@@ -253,35 +265,37 @@ RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specu
         in_dir = reflect(out_dir, h);
         float jacob = microfacet::reflective_jacobian(cos_h_o);
         pdf = fterm.factor * jacob;
+        is_transmission = false;
+
+        float g1 = microfacet::g_1_smith(in_dir, alpha, alpha);
+        float a = g1 * cos_h_o / cos_o;
+        weight = specular * a;
 
         // Reject if wrong hemisphere
         if (in_dir.z < 0)
             return BsdfSample{.pdf = 0};
     }
 
-    float cos_i = in_dir.z;
-    bool is_transmission = cos_i * cos_o < 0;
     pdf *= microfacet::pdf_vndf_ggx(out_dir, h, alpha, alpha);
-    // Note: no adjoint 
-
     if (pdf <= __FLT_EPSILON__) return BsdfSample{.pdf = 0};
 
+    // Note: no adjoint 
     return BsdfSample {
         .dir   = flip ? -in_dir : in_dir,
         .pdf   = pdf,
-        .color = eval_dielectric(flip ? -in_dir : in_dir, flip ? -out_dir : out_dir, specular, transmission, ior, alpha) / pdf, // TODO: Not really efficient
+        .color = weight,
         .eta   = is_transmission ? eta : 1
     };
 }
 
 // ----------------------------- Material ~ Principled
-RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
-    if (mat.transmission > 0)
-        return vec3(0);
+RA_CONSTANT float PrincipledConductorIOR   = 1.0f;
+RA_CONSTANT float PrincipledConductorKappa = 0.0f;
 
+RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
     vec3 color = vec3(0);
     if (mat.metallic > 0)
-        color = color + mat.metallic * eval_conductor(in_dir, out_dir, mat.base_color, mat.base_color, 1, 0, mat.roughness);
+        color = color + mat.metallic * eval_conductor(in_dir, out_dir, mat.base_color, mat.base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
     
     if ((1 - mat.metallic) * mat.transmission > 0)
         color = color + (1 - mat.metallic) * mat.transmission * eval_dielectric(in_dir, out_dir, mat.base_color, mat.base_color, mat.ior, mat.roughness);
@@ -292,12 +306,9 @@ RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
 }
 
 RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
-    if (mat.transmission > 0)
-        return 0;
-
     float pdf = 0;
     if (mat.metallic > 0)
-        pdf += mat.metallic * pdf_conductor(in_dir, out_dir, 1, 0, mat.roughness);
+        pdf += mat.metallic * pdf_conductor(in_dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
 
     if ((1 - mat.metallic) * mat.transmission > 0)
         pdf += (1 - mat.metallic) * mat.transmission * pdf_dielectric(in_dir, out_dir, mat.ior, mat.roughness);
@@ -308,19 +319,27 @@ RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
 }
 
 RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, const Material& mat) {
-    if (mat.transmission > 0)
-        return sample_perfect_dielectric(rng, out_dir, mat.base_color, mat.base_color, mat.ior);
-
     BsdfSample sample;
-    if (randf(rng) < mat.metallic)
-        sample = sample_conductor(rng, out_dir, mat.base_color, mat.base_color, 1, 0, mat.roughness);
-    else if (randf(rng) < mat.transmission)
+    float new_pdf;
+    if (randf(rng) < mat.metallic) {
+        sample = sample_conductor(rng, out_dir, mat.base_color, mat.base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
+        new_pdf = mat.metallic * sample.pdf 
+                + (1 - mat.metallic) * mat.transmission * pdf_dielectric(sample.dir, out_dir, mat.ior, mat.roughness) 
+                + (1 - mat.metallic) * (1 - mat.transmission) * pdf_diffuse(sample.dir, out_dir);
+    } else if (randf(rng) < mat.transmission) {
         sample = sample_dielectric(rng, out_dir, mat.base_color, mat.base_color, mat.ior, mat.roughness);
-    else
+        new_pdf = mat.metallic * pdf_conductor(sample.dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness) 
+                + (1 - mat.metallic) * mat.transmission * sample.pdf 
+                + (1 - mat.metallic) * (1 - mat.transmission) * pdf_diffuse(sample.dir, out_dir);
+    } else {
         sample = sample_diffuse(rng, out_dir, mat.base_color);
+        new_pdf = mat.metallic * pdf_conductor(sample.dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness) 
+                + (1 - mat.metallic) * mat.transmission * pdf_dielectric(sample.dir, out_dir, mat.ior, mat.roughness) 
+                + (1 - mat.metallic) * (1 - mat.transmission) * sample.pdf;
+    }
     
     sample.color = sample.color * sample.pdf;
-    sample.pdf   = pdf_material(sample.dir, out_dir, mat);
+    sample.pdf   = new_pdf;
     sample.color = sample.color / sample.pdf;
     return sample;
 }
