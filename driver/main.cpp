@@ -394,6 +394,10 @@ int main(int argc, char** argv) {
                 uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
                 args.push_back(&ptr_emitters);
                 args.push_back(&bvh.gpu_bvh);
+                uint64_t ptr_tex = shd_rn_get_buffer_device_pointer(model.textures_gpu);
+                args.push_back(&ptr_tex);
+                uint64_t ptr_tex_data = shd_rn_get_buffer_device_pointer(model.texture_data_gpu);
+                args.push_back(&ptr_tex_data);
                 args.push_back(&frame);
                 args.push_back(&accum);
                 args.push_back(&render_mode);
@@ -416,7 +420,10 @@ int main(int argc, char** argv) {
                         if (use_bvh)
                             ntris = 0;
                         int nlights = model.emitters.size();
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, ntris, model.triangles.data(), model.materials.data(), nlights, model.emitters.data(), bvh.host_bvh, nframe, accum, render_mode, cmd_args.max_depth);
+                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, 
+                            ntris, model.triangles.data(), model.materials.data(), nlights, model.emitters.data(), 
+                            bvh.host_bvh, model.textures.data(), model.texture_data.data(),
+                            nframe, accum, render_mode, cmd_args.max_depth);
                     }
                 }
                 auto now = time();

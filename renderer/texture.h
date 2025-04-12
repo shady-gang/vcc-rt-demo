@@ -4,9 +4,20 @@
 #include "ra_math.h"
 
 struct Texture {
-    unsigned char* bytes;
+    const unsigned char* bytes;
     int width;
     int height;
+};
+
+struct TextureDescriptor {
+    unsigned int byte_offset;
+    int width;
+    int height;
+};
+
+struct TextureSystem {
+    const unsigned char* bytes;
+    const TextureDescriptor* textures;
 };
 
 namespace texture {
@@ -29,7 +40,7 @@ struct TextureTexel {
 inline RA_FUNCTION TextureTexel map_uv_to_image_pixel(vec2 uv, const Texture& tex) {    
     // Texels are on the middle of each ~pixel~
     float u = uv.x * tex.width  - 0.5f;
-    float v = uv.y * tex.height - 0.5f;
+    float v = (1 - uv.y) * tex.height - 0.5f;
     
     return TextureTexel {
         .ix = (int)floorf(u),
@@ -57,11 +68,16 @@ inline RA_FUNCTION vec3 lookup_texture(vec2 uv, const Texture& tex) {
     return color_lerp(color_lerp(p00, p10, texel.fx), color_lerp(p01, p11, texel.fx), texel.fy);
 }
 
-inline RA_FUNCTION vec3 lookup_color_property(vec2 uv, vec3 flat_color, int tex_idx, const Texture* textures) {
+inline RA_FUNCTION vec3 lookup_color_property(vec2 uv, vec3 flat_color, int tex_idx, const TextureSystem& textures) {
     if (tex_idx < 0)
         return flat_color;
     
-    return flat_color * lookup_texture(uv, textures[tex_idx]);
+    const auto desc = textures.textures[tex_idx];
+    return flat_color * lookup_texture(uv, Texture {
+        .bytes  = textures.bytes + desc.byte_offset,
+        .width  = desc.width,
+        .height = desc.height
+    });
 }
 }
 

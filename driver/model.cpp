@@ -7,6 +7,10 @@
 #include <cassert>
 #include <vector>
 #include <unordered_set>
+#include <filesystem>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 #include "model.h"
 
@@ -54,6 +58,35 @@ Model::Model(const char* path, Device* device) {
                 base_color = aiColor3D(1.0f, 0.0f, 1.0f);
         }
 
+        int base_color_tex = -1;
+        aiString base_color_tex_path;
+        if (AI_SUCCESS == mat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &base_color_tex_path)) {
+            if (std::filesystem::path(base_color_tex_path.C_Str()).is_relative())
+                base_color_tex_path = (std::filesystem::path(path).parent_path() / base_color_tex_path.C_Str()).generic_string();
+
+            int w, h, c;
+            stbi_uc* data = stbi_load(base_color_tex_path.C_Str(), &w, &h, &c, 4);
+
+            if (data != nullptr) {
+                // Copy to our big buffer... not super effective, but works
+                const size_t start = texture_data.size();
+                const size_t end = start + w * h * 4;
+                texture_data.resize(end);
+
+                memcpy(texture_data.data() + start, data, end - start);
+                stbi_image_free(data);
+
+                base_color_tex = textures.size();
+                textures.push_back(TextureDescriptor {
+                    .byte_offset = (unsigned int)start,
+                    .width  = w,
+                    .height = h
+                });
+            } else {
+                printf("Could not load image '%s'\n", base_color_tex_path.C_Str());
+            }
+        }
+
         float roughness = 1;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness))
             roughness = 1;
@@ -89,7 +122,7 @@ Model::Model(const char* path, Device* device) {
 
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
-            .base_color_tex = -1,
+            .base_color_tex = base_color_tex,
 
             .roughness = fmaxf(roughness * roughness, 1e-4f), // We store squared version
             .roughness_tex = -1, // TODO
@@ -186,6 +219,15 @@ Model::Model(const char* path, Device* device) {
         printf("LIGHT (%f,%f,%f) %i\n", emitter.emission[0], emitter.emission[1], emitter.emission[2], emitter.prim_id);
     offload(device, emitters, emitters_gpu);
 
+    // -------------- Upload textures
+    if (textures.empty()) {
+        textures_gpu = nullptr;
+        texture_data_gpu = nullptr;
+    } else {
+        offload(device, textures, textures_gpu);
+        offload(device, texture_data, texture_data_gpu);
+    }
+
     // --------------- Camera
     loaded_camera.position = vec3(0,0,0);
     loaded_camera.rotation.yaw = 0;
@@ -206,4 +248,8 @@ Model::~Model() {
     shd_rn_destroy_buffer(triangles_gpu);
     shd_rn_destroy_buffer(materials_gpu);
     shd_rn_destroy_buffer(emitters_gpu);
+    if (textures_gpu)
+        shd_rn_destroy_buffer(textures_gpu);
+    if (texture_data_gpu)
+        shd_rn_destroy_buffer(texture_data_gpu);
 }

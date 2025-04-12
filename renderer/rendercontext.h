@@ -15,7 +15,7 @@ struct RenderContext {
     int num_lights;
     const Emitter* emitters;
     BVH* bvh;
-    const Texture* textures;
+    TextureSystem textures;
 
     int max_depth;
     bool enable_nee;
