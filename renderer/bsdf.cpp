@@ -292,20 +292,22 @@ RA_FUNCTION BsdfSample sample_dielectric(RNGState* rng, vec3 out_dir, vec3 specu
 RA_CONSTANT float PrincipledConductorIOR   = 1.0f;
 RA_CONSTANT float PrincipledConductorKappa = 0.0f;
 
-RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
+RA_FUNCTION vec3 eval_material(vec3 in_dir, vec3 out_dir, vec2 uv, const Material& mat, const Texture* textures) {
+    vec3 base_color = texture::lookup_color_property(uv, mat.base_color, mat.base_color_tex, textures);
+
     vec3 color = vec3(0);
     if (mat.metallic > 0)
-        color = color + mat.metallic * eval_conductor(in_dir, out_dir, mat.base_color, mat.base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
+        color = color + mat.metallic * eval_conductor(in_dir, out_dir, base_color, base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
     
     if ((1 - mat.metallic) * mat.transmission > 0)
-        color = color + (1 - mat.metallic) * mat.transmission * eval_dielectric(in_dir, out_dir, mat.base_color, mat.base_color, mat.ior, mat.roughness);
+        color = color + (1 - mat.metallic) * mat.transmission * eval_dielectric(in_dir, out_dir, base_color, base_color, mat.ior, mat.roughness);
 
     if ((1 - mat.metallic) * (1 - mat.transmission) > 0)
-        color = color + (1 - mat.metallic) * (1 - mat.transmission) * eval_diffuse(in_dir, out_dir, mat.base_color);
+        color = color + (1 - mat.metallic) * (1 - mat.transmission) * eval_diffuse(in_dir, out_dir, base_color);
     return color;
 }
 
-RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
+RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, vec2 uv, const Material& mat, const Texture* textures) {
     float pdf = 0;
     if (mat.metallic > 0)
         pdf += mat.metallic * pdf_conductor(in_dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
@@ -318,21 +320,23 @@ RA_FUNCTION float pdf_material(vec3 in_dir, vec3 out_dir, const Material& mat) {
     return pdf;
 }
 
-RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, const Material& mat) {
+RA_FUNCTION BsdfSample sample_material(RNGState* rng, vec3 out_dir, vec2 uv, const Material& mat, const Texture* textures) {
+    vec3 base_color = texture::lookup_color_property(uv, mat.base_color, mat.base_color_tex, textures);
+
     BsdfSample sample;
     float new_pdf;
     if (randf(rng) < mat.metallic) {
-        sample = sample_conductor(rng, out_dir, mat.base_color, mat.base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
+        sample = sample_conductor(rng, out_dir, base_color, base_color, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness);
         new_pdf = mat.metallic * sample.pdf 
                 + (1 - mat.metallic) * mat.transmission * pdf_dielectric(sample.dir, out_dir, mat.ior, mat.roughness) 
                 + (1 - mat.metallic) * (1 - mat.transmission) * pdf_diffuse(sample.dir, out_dir);
     } else if (randf(rng) < mat.transmission) {
-        sample = sample_dielectric(rng, out_dir, mat.base_color, mat.base_color, mat.ior, mat.roughness);
+        sample = sample_dielectric(rng, out_dir, base_color, base_color, mat.ior, mat.roughness);
         new_pdf = mat.metallic * pdf_conductor(sample.dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness) 
                 + (1 - mat.metallic) * mat.transmission * sample.pdf 
                 + (1 - mat.metallic) * (1 - mat.transmission) * pdf_diffuse(sample.dir, out_dir);
     } else {
-        sample = sample_diffuse(rng, out_dir, mat.base_color);
+        sample = sample_diffuse(rng, out_dir, base_color);
         new_pdf = mat.metallic * pdf_conductor(sample.dir, out_dir, PrincipledConductorIOR, PrincipledConductorKappa, mat.roughness) 
                 + (1 - mat.metallic) * mat.transmission * pdf_dielectric(sample.dir, out_dir, mat.ior, mat.roughness) 
                 + (1 - mat.metallic) * (1 - mat.transmission) * sample.pdf;

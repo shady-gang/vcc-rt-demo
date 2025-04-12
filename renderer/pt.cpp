@@ -14,7 +14,7 @@ RA_FUNCTION inline float compute_rr_factor(vec3 color, int depth) {
     return depth < 2 ? 1.0f : clampf(2 * color_luminance(color), 0.05f, 0.95f);
 }
 
-RA_FUNCTION vec3 pt_handle_nee(RNGState* rng, float prev_pdf, vec3 out_dir, vec3 pos_surface, const Material& mat, const shading::ShadingFrame& frame, const RenderContext& ctx) {
+RA_FUNCTION vec3 pt_handle_nee(RNGState* rng, float prev_pdf, vec3 out_dir, vec3 pos_surface, vec2 uv_surface, const Material& mat, const shading::ShadingFrame& frame, const RenderContext& ctx) {
     const float offset = 0.001f;
 
     int picked_light = sample_emitter(rng, ctx.num_lights-1) + 1; // Skip environment map (id == 0)
@@ -52,8 +52,8 @@ RA_FUNCTION vec3 pt_handle_nee(RNGState* rng, float prev_pdf, vec3 out_dir, vec3
 
     vec3 out_dir_s  = shading::to_local(out_dir, frame);
     vec3 in_dir_s   = shading::to_local(in_dir, frame);
-    float pdf_bsdf  = shading::pdf_material(in_dir_s, out_dir_s, mat);
-    vec3 bsdfFactor = shading::eval_material(in_dir_s, out_dir_s, mat);                                                                                                                                                                                 
+    float pdf_bsdf  = shading::pdf_material(in_dir_s, out_dir_s, uv_surface, mat, ctx.textures);
+    vec3 bsdfFactor = shading::eval_material(in_dir_s, out_dir_s, uv_surface, mat, ctx.textures);                                                                                                                                                                                 
 
     float mis = 1 / (1 + pdf_bsdf / pdf_nee);
     return mis * bsdfFactor * emitter.emission / pdf_nee;
@@ -77,12 +77,13 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, f
 
         vec3 n     = tri.get_vertex_normal(hit.primary);
         vec3 p     = tri.get_position(hit.primary);
+        vec2 uv    = tri.get_texcoords(hit.primary);
         vec3 fn    = tri.get_face_normal();
         auto frame = shading::make_shading_frame(n);
 
         // Handle NEE if enabled and there is enough room
         if (ctx.enable_nee && depth + 1 <= ctx.max_depth)
-            contrib = contrib + throughput * pt_handle_nee(rng, prev_pdf, -ray.dir, p, mat, frame, ctx);
+            contrib = contrib + throughput * pt_handle_nee(rng, prev_pdf, -ray.dir, p, uv, mat, frame, ctx);
 
         // Handle emissive hits only when hit from the front
         float fn_dot = fmaxf(fn.dot(-ray.dir), 0);
@@ -100,7 +101,7 @@ RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, f
         }
 
         // Next bounce
-        const auto sample = shading::sample_material(rng, shading::to_local(-ray.dir, frame), mat);
+        const auto sample = shading::sample_material(rng, shading::to_local(-ray.dir, frame), uv, mat, ctx.textures);
         if (sample.pdf <= __FLT_EPSILON__)
             return contrib;
 

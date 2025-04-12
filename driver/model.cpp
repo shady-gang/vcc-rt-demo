@@ -89,7 +89,10 @@ Model::Model(const char* path, Device* device) {
 
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
+            .base_color_tex = -1,
+
             .roughness = fmaxf(roughness * roughness, 1e-4f), // We store squared version
+            .roughness_tex = -1, // TODO
             
             .ior = 1.50f,//(2/(1-sqrtf(0.08f * specular))-1),
             .metallic = metallic,

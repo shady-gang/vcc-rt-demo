@@ -10,6 +10,7 @@ static float M_PI = 3.14159265f;
 static float fabs(float) __asm__("shady::pure_op::GLSL.std.450::4::Invocation");
 static float sign(float) __asm__("shady::pure_op::GLSL.std.450::6::Invocation");
 static float floorf(float) __asm__("shady::pure_op::GLSL.std.450::8::Invocation");
+static float fractf(float) __asm__("shady::pure_op::GLSL.std.450::10::Invocation");
 static float sinf(float) __asm__("shady::pure_op::GLSL.std.450::13::Invocation");
 static float cosf(float) __asm__("shady::pure_op::GLSL.std.450::14::Invocation");
 static float tanf(float) __asm__("shady::pure_op::GLSL.std.450::15::Invocation");
@@ -28,7 +29,7 @@ typedef long int size_t;
 #define RA_FUNCTION static
 #define RA_METHOD
 #define RA_CONSTANT static
-RA_FUNCTION float copysignf(float a, float b) {
+inline RA_FUNCTION float copysignf(float a, float b) {
     return (b < 0.0f) ? -fabs(a) : fabs(a);
 }
 
@@ -39,8 +40,12 @@ RA_FUNCTION float copysignf(float a, float b) {
 #define RA_METHOD __device__
 #define RA_CONSTANT __constant__
 
-RA_FUNCTION float sign(float f) {
+inline RA_FUNCTION float sign(float f) {
     return copysignf(1.0f, f);
+}
+
+inline RA_FUNCTION float fractf(float x) {
+    return x - floorf(x);
 }
 #else
 #include <cmath>
@@ -50,8 +55,12 @@ RA_FUNCTION float sign(float f) {
 #define RA_METHOD
 #define RA_CONSTANT static inline
 
-RA_FUNCTION static float sign(float f) {
+inline RA_FUNCTION static float sign(float f) {
     return copysignf(1.0f, f);
+}
+
+inline RA_FUNCTION float fractf(float x) {
+    return x - floorf(x);
 }
 #endif
 
@@ -60,7 +69,6 @@ RA_FUNCTION static float sign(float f) {
 using namespace nasl;
 
 RA_CONSTANT float epsilon = 1e-4f;
-// RA_CONSTANT float pi = 3.141592f;
 
 /// @brief Barycentric interpolation ([0,0] returns a, [1,0] returns b, and
 /// [0,1] returns c).
@@ -74,11 +82,19 @@ inline RA_FUNCTION float clampf(float v, float min, float max) {
     return fminf(max, fmaxf(v, min));
 }
 
+inline RA_FUNCTION int clamp(int v, int low, int high) {
+    return v < low ? low : (v > high ? high : v);
+}
+
 inline RA_FUNCTION vec3 clamp(vec3 v, vec3 min, vec3 max) {
     v.x = fminf(max.x, fmaxf(v.x, min.x));
     v.y = fminf(max.y, fmaxf(v.y, min.y));
     v.z = fminf(max.z, fmaxf(v.z, min.z));
     return v;
+}
+
+inline RA_FUNCTION vec3 color_lerp(vec3 a, vec3 b, float t) {
+    return (1.0f - t) * a + t * b;
 }
 
 inline RA_FUNCTION float color_average(vec3 color) {

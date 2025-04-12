@@ -6,6 +6,7 @@
 struct Triangle;
 struct Material;
 struct Emitter;
+struct Texture;
 struct BVH;
 
 struct RenderContext {
@@ -14,6 +15,7 @@ struct RenderContext {
     int num_lights;
     const Emitter* emitters;
     BVH* bvh;
+    const Texture* textures;
 
     int max_depth;
     bool enable_nee;
