@@ -164,7 +164,7 @@ RA_RENDERER_SIGNATURE {
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
             break;
         }
-        /*case PT:
+        case PT:
         case PT_NEE: {
             RenderContext ctx {
                 .primitives = triangles,
@@ -187,7 +187,7 @@ RA_RENDERER_SIGNATURE {
             write_film(film, x, y, width, height, film_data);
             access_frame_buffer(fb, x, y, width, height) = pack_color(1.0f * film_data / (accum + 1));
             break;
-        }*/
+        }
     }
 }
 
