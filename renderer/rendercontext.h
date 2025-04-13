@@ -2,11 +2,11 @@
 #define RA_RENDERCONTEXT_H_
 
 #include "ra_math.h"
+#include "texture.h"
 
 struct Triangle;
 struct Material;
 struct Emitter;
-struct Texture;
 struct BVH;
 
 struct RenderContext {
