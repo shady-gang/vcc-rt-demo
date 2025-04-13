@@ -27,10 +27,10 @@ struct Model {
     shady::Buffer* emitters_gpu = nullptr;
 
     std::vector<unsigned char> texture_data;
-    shady::Buffer* texture_data_gpu;
+    shady::Buffer* texture_data_gpu = nullptr;
 
     std::vector<TextureDescriptor> textures;
-    shady::Buffer* textures_gpu;
+    shady::Buffer* textures_gpu = nullptr;
 
     Camera loaded_camera;
 };
