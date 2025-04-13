@@ -44,6 +44,10 @@ inline RA_FUNCTION vec3 to_local(vec3 world_dir, vec3 normal) {
   return to_local(world_dir, make_shading_frame(normal));
 }
 
+inline RA_FUNCTION bool is_same_hemisphere(vec3 in_dir, vec3 out_dir) {
+  return (in_dir.z < 0) == (out_dir.z < 0);
+}
+
 } // namespace shading
 
 #endif

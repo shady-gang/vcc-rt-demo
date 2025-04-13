@@ -7,3 +7,6 @@
 [submodule "imr"]
 	path = imr
 	url = https://github.com/shady-gang/imr.git
+[submodule "stb"]
+	path = stb
+	url = https://github.com/nothings/stb.git

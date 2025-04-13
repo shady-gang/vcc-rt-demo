@@ -7,10 +7,38 @@
 #include <cassert>
 #include <vector>
 #include <unordered_set>
+#include <filesystem>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 #include "model.h"
 
 using namespace shady;
+
+// Will linearize using sRGB gamma function
+void linearize_texture(unsigned char* buffer, size_t size) {
+    for(size_t i = 0; i < size; ++i) {
+        float v = buffer[i] / 255.0f;
+        
+        if (v <= 0.04045f)
+            v = v / 12.92f;
+        else
+            v = powf((v + 0.055f) / 1.055f, 2.4f);
+
+        buffer[i] = v * 255;
+    }
+}
+
+void remap_texture_argb_rgba(unsigned char* buffer, size_t width, size_t height) {
+    for(size_t i = 0; i < width * height; ++i) {
+        const auto a = buffer[i*4 + 0];
+        buffer[i*4 + 0] = buffer[i*4 + 1];
+        buffer[i*4 + 1] = buffer[i*4 + 2];
+        buffer[i*4 + 2] = buffer[i*4 + 3];
+        buffer[i*4 + 3] = a;
+    }
+}
 
 Model::Model(const char* path, Device* device) {
     Assimp::Importer importer;
@@ -54,17 +82,124 @@ Model::Model(const char* path, Device* device) {
                 base_color = aiColor3D(1.0f, 0.0f, 1.0f);
         }
 
-        float roughness;
+        int base_color_tex = -1;
+        aiString base_color_tex_path;
+        if (AI_SUCCESS == mat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &base_color_tex_path)) {
+            if (base_color_tex_path.length > 1 && base_color_tex_path.C_Str()[0] == '*') {
+                // Embedded texture
+
+                int index = atoi(base_color_tex_path.C_Str() + 1);
+                printf("Loading embedded image '%i'\n", index);
+
+                if (index >= scene->mNumTextures) {
+                    printf("Could not load embedded image '%i': Out of bounds\n", index);
+                } else {
+                    const auto tex = scene->mTextures[index];
+                    if (tex->mHeight == 0) {
+                        // Compressed
+                        
+                        int w, h, c;
+                        stbi_uc* data = stbi_load_from_memory((const stbi_uc*)tex->pcData, tex->mWidth, &w, &h, &c, 4);
+                        linearize_texture(data, w * h * 4);
+                        
+                        if (data != nullptr) {
+                            // Copy to our big buffer... not super effective, but works
+                            const size_t start = texture_data.size();
+                            const size_t end = start + w * h * 4;
+                            texture_data.resize(end);
+
+                            memcpy(texture_data.data() + start, data, end - start);
+                            stbi_image_free(data);
+
+                            base_color_tex = textures.size();
+                            textures.push_back(TextureDescriptor {
+                                .byte_offset = (unsigned int)start,
+                                .width  = w,
+                                .height = h
+                            });
+                        } else {
+                            printf("Could not load embedded image '%i': Loading compressed image failed\n", index);
+                        }
+                    } else {
+                        // Raw ARGB
+                        const size_t start = texture_data.size();
+                        const size_t end = start + tex->mWidth * tex->mHeight * 4;
+                        texture_data.resize(end);
+
+                        memcpy(texture_data.data() + start, tex->pcData, end - start);
+
+                        if (strcmp("rgba8888", tex->achFormatHint) == 0) {
+                            // Nothing
+                            base_color_tex = textures.size();
+                            textures.push_back(TextureDescriptor {
+                                .byte_offset = (unsigned int)start,
+                                .width  = (int)tex->mWidth,
+                                .height = (int)tex->mHeight
+                            });
+                        } else if (strcmp("argb8888", tex->achFormatHint) == 0) {
+                            remap_texture_argb_rgba(texture_data.data() + start, tex->mWidth, tex->mHeight);
+                            
+                            base_color_tex = textures.size();
+                            textures.push_back(TextureDescriptor {
+                                .byte_offset = (unsigned int)start,
+                                .width  = (int)tex->mWidth,
+                                .height = (int)tex->mHeight
+                            });
+                        } else {
+                            printf("Could not load embedded image '%i': Unsupported format '%s'\n", index, tex->achFormatHint);
+                        }
+                    }
+                }
+            } else {
+                // External texture
+                if (std::filesystem::path(base_color_tex_path.C_Str()).is_relative())
+                    base_color_tex_path = (std::filesystem::path(path).parent_path() / base_color_tex_path.C_Str()).generic_string();
+            
+                printf("Loading image '%s'\n", base_color_tex_path.C_Str());
+
+                int w, h, c;
+                stbi_uc* data = stbi_load(base_color_tex_path.C_Str(), &w, &h, &c, 4);
+                linearize_texture(data, w * h * 4);
+
+                if (data != nullptr) {
+                    // Copy to our big buffer... not super effective, but works
+                    const size_t start = texture_data.size();
+                    const size_t end = start + w * h * 4;
+                    texture_data.resize(end);
+
+                    memcpy(texture_data.data() + start, data, end - start);
+                    stbi_image_free(data);
+
+                    base_color_tex = textures.size();
+                    textures.push_back(TextureDescriptor {
+                        .byte_offset = (unsigned int)start,
+                        .width  = w,
+                        .height = h
+                    });
+                } else {
+                    printf("Could not load image '%s'\n", base_color_tex_path.C_Str());
+                }
+            }
+        }
+
+        float roughness = 1;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness))
             roughness = 1;
 
-        float metallic;
+        float metallic = 0;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_METALLIC_FACTOR, metallic))
             metallic = 0;
 
-        float ior = 1;
+        float specular = 0;
+        aiColor3D specularColor;
+        if (AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_SPECULAR, specularColor)) {
+            specular = color_average(vec3(specularColor.r, specularColor.g, specularColor.b));
+        } else{
+            if (AI_SUCCESS != mat->Get(AI_MATKEY_SPECULAR_FACTOR, specular))
+                specular = 0;
+        }
 
-        float transmission;
+        float transmission = 0;
         if (AI_SUCCESS != mat->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission))
             transmission = 0;
 
@@ -82,9 +217,12 @@ Model::Model(const char* path, Device* device) {
 
         materials.push_back(Material{
             .base_color = vec3(base_color.r, base_color.g, base_color.b),
-            .roughness = roughness,
+            .base_color_tex = base_color_tex,
+
+            .roughness = fmaxf(roughness * roughness, 1e-4f), // We store squared version
+            .roughness_tex = -1, // TODO
             
-            .ior = ior,
+            .ior = 1.50f,//(2/(1-sqrtf(0.08f * specular))-1),
             .metallic = metallic,
             .transmission = transmission,
             
@@ -94,12 +232,13 @@ Model::Model(const char* path, Device* device) {
 
     if (materials.empty()) {
         printf("Scene has no materials. Default to diffuse\n");
-        materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1});
+        materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1, .ior = 1, .metallic = 0, .transmission = 0, .emission = vec3(0)});
     } else {
         printf("Loaded %zu materials\n", this->materials.size());
     }
+    // A pretty implementation would merge some materials if they are not unique
     for (const auto& mat: materials)
-        printf("MAT (%f,%f,%f) r=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness);
+        printf("MAT c=(%f,%f,%f) r=%f, m=%f, n=%f, t=%f\n", mat.base_color[0], mat.base_color[1], mat.base_color[2], mat.roughness, mat.metallic, mat.ior, mat.transmission);
     offload(device, materials, materials_gpu);
 
     // --------------- Triangles
@@ -172,23 +311,50 @@ Model::Model(const char* path, Device* device) {
             emitters[0] = env;
     }
     printf("Loaded %zu emitters\n", this->emitters.size());
-    for (const auto& emitter: emitters)
-        printf("LIGHT (%f,%f,%f) %i\n", emitter.emission[0], emitter.emission[1], emitter.emission[2], emitter.prim_id);
+    if (emitters.size() < 24) {
+        for (const auto& emitter: emitters)
+            printf("LIGHT (%f,%f,%f) %i\n", emitter.emission[0], emitter.emission[1], emitter.emission[2], emitter.prim_id);
+    } else {
+        printf("Too many lights to dump. Skipping it.\n");
+    }
     offload(device, emitters, emitters_gpu);
+
+    // -------------- Upload textures
+    if (textures.empty()) {
+        textures_gpu = nullptr;
+        texture_data_gpu = nullptr;
+    } else {
+        offload(device, textures, textures_gpu);
+        offload(device, texture_data, texture_data_gpu);
+    }
 
     // --------------- Camera
     loaded_camera.position = vec3(0,0,0);
     loaded_camera.rotation.yaw = 0;
     loaded_camera.rotation.pitch = 0;
-    loaded_camera.fov = 1.04719755f; // In radians (60deg)
+    loaded_camera.fov = 60; // In radians (60deg)
     if (scene->HasCameras()) {
+        printf("Loading embedded camera\n");
+
         const auto camera = scene->mCameras[0];
+        aiMatrix4x4 cameraMatrix;
+        camera->GetCameraMatrix(cameraMatrix);
+        // aiQuaternion quad;
+        // aiVector3D pos;
+        // cameraMatrix.DecomposeNoScaling(quad, pos);
+        
+        // float yaw   = atan2f(2.0f*(quad.y*quad.z + quad.w*quad.x), quad.w*quad.w - quad.x*quad.x - quad.y*quad.y + quad.z*quad.z);
+        // float pitch = asinf(-2.0f*(quad.x*quad.z - quad.w*quad.y));
+
+        aiVector3D scale;
+        aiVector3D rot;
+        aiVector3D pos;
+        cameraMatrix.Decompose(scale, rot, pos);
         loaded_camera = Camera {
             .position = vec3{camera->mPosition.x, camera->mPosition.y, camera->mPosition.z},
-            .rotation = {.yaw = 0, .pitch = 0}, // TODO
-            .fov = camera->mHorizontalFOV,
+            .rotation = {.yaw = rot.y, .pitch = rot.x}, // TODO: This does not exactly match. We should get rid of the yaw-pitch stuff and do proper camera handling
+            .fov = camera->mHorizontalFOV / float(M_PI) * 180.0f,
         };
-        printf("CAMERA eye=(%f,%f,%f)\n", loaded_camera.position[0], loaded_camera.position[1], loaded_camera.position[2]);
     }
 }
 
@@ -196,4 +362,8 @@ Model::~Model() {
     shd_rn_destroy_buffer(triangles_gpu);
     shd_rn_destroy_buffer(materials_gpu);
     shd_rn_destroy_buffer(emitters_gpu);
+    if (textures_gpu)
+        shd_rn_destroy_buffer(textures_gpu);
+    if (texture_data_gpu)
+        shd_rn_destroy_buffer(texture_data_gpu);
 }

@@ -3,17 +3,16 @@
 
 #include "ra_math.h"
 
-// TODO: Too simple
 struct Material {
     vec3 base_color;
-    float roughness;
+    int base_color_tex;
 
+    float roughness;
+    int roughness_tex;
     float ior;
     float metallic;
-    float transmission;
-    float _pad1;
     
+    float transmission;
     vec3 emission;
-    float _pad2;
 };
 #endif

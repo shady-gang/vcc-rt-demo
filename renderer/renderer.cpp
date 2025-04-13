@@ -172,6 +172,10 @@ RA_RENDERER_SIGNATURE {
                 .num_lights = nlights, // Note: there is always an evironment map (but maybe black though)
                 .emitters = emitters,
                 .bvh = &bvh,
+                .textures = TextureSystem {
+                    .bytes = texture_data,
+                    .textures = texture_descriptors
+                },
 
                 .max_depth = max_depth,
                 .enable_nee = (mode == PT_NEE) && nlights > 1

@@ -11,9 +11,9 @@ using namespace nasl;
 typedef struct {
     vec3 position;
     struct {
-        float yaw, pitch;
+        float yaw, pitch; // In radians!
     } rotation;
-    float fov;
+    float fov; // In degree!
 } Camera;
 
 RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));
@@ -38,7 +38,7 @@ typedef struct {
 RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
 inline RA_FUNCTION vec2 camera_scale_from_hfov(float fov, float aspect) {
-    float sw = tanf(fov * 0.5f);
+    float sw = tanf(fov * 0.5f * (float(M_PI) / 180.0f));
     float sh = sw / aspect;
     return vec2(sw, sh);
 }
