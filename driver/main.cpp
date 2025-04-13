@@ -107,7 +107,8 @@ struct CommandArguments {
     int max_depth = 5;
     std::optional<float> camera_speed;
     std::optional<vec3> camera_eye;
-    std::optional<vec2> camera_rotation;
+    std::optional<vec3> camera_dir;
+    std::optional<vec3> camera_up;
     std::optional<float> camera_fov;
 };
 
@@ -158,11 +159,20 @@ int main(int argc, char** argv) {
             cmd_args.camera_eye = pos;
             continue;
         }
-        if (strcmp(argv[i], "--rotation") == 0) {
-            vec2 rot;
-            rot.x = strtof(argv[++i], nullptr);
-            rot.y = strtof(argv[++i], nullptr);
-            cmd_args.camera_rotation = rot;
+        if (strcmp(argv[i], "--dir") == 0) {
+            vec3 dir;
+            dir.x = strtof(argv[++i], nullptr);
+            dir.y = strtof(argv[++i], nullptr);
+            dir.z = strtof(argv[++i], nullptr);
+            cmd_args.camera_dir = dir;
+            continue;
+        }
+        if (strcmp(argv[i], "--up") == 0) {
+            vec3 up;
+            up.x = strtof(argv[++i], nullptr);
+            up.y = strtof(argv[++i], nullptr);
+            up.z = strtof(argv[++i], nullptr);
+            cmd_args.camera_up = up;
             continue;
         }
         if (strcmp(argv[i], "--fov") == 0) {
@@ -240,7 +250,11 @@ int main(int argc, char** argv) {
             }
             accum = 0;
         } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
-            printf("--position %f %f %f --rotation %f %f --fov %f\n", (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, (float) camera.rotation.yaw, (float) camera.rotation.pitch, (float) camera.fov);
+            printf("--position %f %f %f --dir %f %f %f --up %f %f %f --fov %f\n",
+                (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, 
+                (float) camera.direction.x, (float) camera.direction.y, (float) camera.direction.z, 
+                (float) camera.up.x, (float) camera.up.y, (float) camera.up.z, 
+                (float) camera.fov);
         }
         if (action == GLFW_PRESS && key == GLFW_KEY_MINUS) {
             camera.fov -= 0.02f;
@@ -275,7 +289,7 @@ int main(int argc, char** argv) {
     }
     assert(device);
 
-    shady::TargetConfig target_config = shd_rn_get_device_target_config(device);
+    shady::TargetConfig target_config = shd_rn_get_device_target_config(&compiler_config, device);
 
     std::string files = xstr(RENDERER_LL_FILES);
     shady::Module* mod = nullptr;
@@ -318,15 +332,21 @@ int main(int argc, char** argv) {
     if (cmd_args.camera_eye.has_value())
         camera.position = *cmd_args.camera_eye;
 
-    if (cmd_args.camera_rotation.has_value()){
-        camera.rotation.yaw = cmd_args.camera_rotation->x;
-        camera.rotation.pitch = cmd_args.camera_rotation->y;
-    }
+    if (cmd_args.camera_dir.has_value())
+        camera.direction = *cmd_args.camera_dir;
+
+    if (cmd_args.camera_up.has_value())
+        camera.up = *cmd_args.camera_up;
 
     if (cmd_args.camera_fov)
         camera.fov = *cmd_args.camera_fov;
-
-    printf("Loaded Camera: eye=(%f, %f, %f) rot=(%f, %f)\n", (float)camera.position.x, (float)camera.position.y, (float)camera.position.z, (float)camera.rotation.yaw, (float)camera.rotation.pitch);
+    
+    // Ensure camera has correct orientation
+    camera_update_orientation(&camera, camera.direction, camera.up);
+    printf("Loaded Camera: eye=(%f, %f, %f) dir=(%f, %f, %f) up=(%f, %f, %f)\n",
+         (float)camera.position.x, (float)camera.position.y, (float)camera.position.z, 
+         (float)camera.direction.x, (float)camera.direction.y, (float)camera.direction.z, 
+         (float)camera.up.x, (float)camera.up.y, (float)camera.up.z);
 
     // Setup other stuff
     auto epoch = time();

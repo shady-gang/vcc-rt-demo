@@ -330,32 +330,29 @@ Model::Model(const char* path, Device* device) {
 
     // --------------- Camera
     loaded_camera.position = vec3(0,0,0);
-    loaded_camera.rotation.yaw = 0;
-    loaded_camera.rotation.pitch = 0;
-    loaded_camera.fov = 60; // In radians (60deg)
+    loaded_camera.direction = vec3(0,0,1);
+    loaded_camera.up = vec3(0,1,0);
+    loaded_camera.right = vec3(1,0,0);
+    loaded_camera.fov = 60 / 180.0f * M_PI; // In radians (60deg)
     if (scene->HasCameras()) {
         printf("Loading embedded camera\n");
 
         const auto camera = scene->mCameras[0];
         aiMatrix4x4 cameraMatrix;
         camera->GetCameraMatrix(cameraMatrix);
-        // aiQuaternion quad;
-        // aiVector3D pos;
-        // cameraMatrix.DecomposeNoScaling(quad, pos);
-        
-        // float yaw   = atan2f(2.0f*(quad.y*quad.z + quad.w*quad.x), quad.w*quad.w - quad.x*quad.x - quad.y*quad.y + quad.z*quad.z);
-        // float pitch = asinf(-2.0f*(quad.x*quad.z - quad.w*quad.y));
 
-        aiVector3D scale;
-        aiVector3D rot;
-        aiVector3D pos;
-        cameraMatrix.Decompose(scale, rot, pos);
+        // Ignores scaling
+        
         loaded_camera = Camera {
             .position = vec3{camera->mPosition.x, camera->mPosition.y, camera->mPosition.z},
-            .rotation = {.yaw = rot.y, .pitch = rot.x}, // TODO: This does not exactly match. We should get rid of the yaw-pitch stuff and do proper camera handling
-            .fov = camera->mHorizontalFOV / float(M_PI) * 180.0f,
+            .direction = vec3{cameraMatrix.c1, cameraMatrix.c2, cameraMatrix.c3},
+            .right = vec3{cameraMatrix.a1, cameraMatrix.a2, cameraMatrix.a3},
+            .up = vec3{cameraMatrix.b1, cameraMatrix.b2, cameraMatrix.b3},
+            .fov = camera->mHorizontalFOV,
         };
     }
+
+    camera_update_orientation(&loaded_camera, loaded_camera.direction, loaded_camera.up);
 }
 
 Model::~Model() {

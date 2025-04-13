@@ -10,15 +10,12 @@ using namespace nasl;
 
 typedef struct {
     vec3 position;
-    struct {
-        float yaw, pitch; // In radians!
-    } rotation;
-    float fov; // In degree!
+    vec3 direction;
+    vec3 right;
+    vec3 up;
+    float fov; // In radians
+    float _pad[3];
 } Camera;
-
-RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward = vec3(0, 0, -1));
-RA_FUNCTION vec3 camera_get_left_vec(const Camera*);
-RA_FUNCTION mat4 camera_get_view_mat4(const Camera*, size_t, size_t);
 
 typedef struct {
     float fly_speed, mouse_sensitivity;
@@ -35,10 +32,12 @@ typedef struct {
     } keys;
 } CameraInput;
 
+RA_FUNCTION void camera_update_orientation(Camera* cam, vec3 ndir, vec3 nup);
+
 RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
 inline RA_FUNCTION vec2 camera_scale_from_hfov(float fov, float aspect) {
-    float sw = tanf(fov * 0.5f * (float(M_PI) / 180.0f));
+    float sw = tanf(fov * 0.5f);
     float sh = sw / aspect;
     return vec2(sw, sh);
 }

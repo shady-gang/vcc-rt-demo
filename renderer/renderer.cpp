@@ -65,7 +65,7 @@ RA_RENDERER_SIGNATURE {
     float dy = ((y + randf(&rng)) / (float) height) * 2.0f - 1;
     vec3 origin = cam.position;
 
-    Ray r = { origin, normalize(camera_get_forward_vec(&cam, vec3(camera_scale[0]*dx, camera_scale[1]*dy, -1.0f))), 0, 99999 };
+    Ray r = { origin, normalize(-cam.right * camera_scale[0] * dx + cam.up * camera_scale[1]*dy - cam.direction), 0, 99999 };
 
     switch (mode) {
         case FACENORMAL: {
