@@ -100,9 +100,10 @@ Model::Model(const char* path, Device* device) {
                         
                         int w, h, c;
                         stbi_uc* data = stbi_load_from_memory((const stbi_uc*)tex->pcData, tex->mWidth, &w, &h, &c, 4);
-                        linearize_texture(data, w * h * 4);
                         
                         if (data != nullptr) {
+                            linearize_texture(data, w * h * 4);
+
                             // Copy to our big buffer... not super effective, but works
                             const size_t start = texture_data.size();
                             const size_t end = start + w * h * 4;
@@ -159,9 +160,10 @@ Model::Model(const char* path, Device* device) {
 
                 int w, h, c;
                 stbi_uc* data = stbi_load(base_color_tex_path.C_Str(), &w, &h, &c, 4);
-                linearize_texture(data, w * h * 4);
 
                 if (data != nullptr) {
+                    linearize_texture(data, w * h * 4);
+
                     // Copy to our big buffer... not super effective, but works
                     const size_t start = texture_data.size();
                     const size_t end = start + w * h * 4;
@@ -234,7 +236,7 @@ Model::Model(const char* path, Device* device) {
         printf("Scene has no materials. Default to diffuse\n");
         materials.push_back(Material {.base_color = vec3(0.8f), .roughness = 1, .ior = 1, .metallic = 0, .transmission = 0, .emission = vec3(0)});
     } else {
-        printf("Loaded %zu materials\n", this->materials.size());
+        printf("Loaded %zu materials (%zu kb)\n", this->materials.size(), materials.size() * sizeof(Material) / (1024));
     }
     // A pretty implementation would merge some materials if they are not unique
     for (const auto& mat: materials)
@@ -298,19 +300,19 @@ Model::Model(const char* path, Device* device) {
     }
 
     this->triangles = std::move(tris);
-    printf("Loaded %zu triangles\n", this->triangles.size());
+    printf("Loaded %zu triangles (%zu Mb)\n", this->triangles.size(), triangles.size() * sizeof(Triangle) / (1024*1024));
     offload(device, triangles, triangles_gpu);
 
     // --------------- Lights
     if (emitters.empty() || (emitters.size() == 1 && color_average(emitters.at(0).emission) == 0)) {
         printf("No light given for scene. Adding default environment light.\n");
-        const Emitter env{ .emission = vec3(10/M_PI), .prim_id = -1 };
+        const Emitter env{ .emission = vec3(1/M_PI), .prim_id = -1 };
         if(emitters.empty())
             emitters.push_back(env);
         else
             emitters[0] = env;
     }
-    printf("Loaded %zu emitters\n", this->emitters.size());
+    printf("Loaded %zu emitters (%zu kb)\n", this->emitters.size(), emitters.size() * sizeof(Emitter) / (1024));
     if (emitters.size() < 24) {
         for (const auto& emitter: emitters)
             printf("LIGHT (%f,%f,%f) %i\n", emitter.emission[0], emitter.emission[1], emitter.emission[2], emitter.prim_id);

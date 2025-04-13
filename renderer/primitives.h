@@ -43,11 +43,12 @@ struct BBox {
 };
 
 struct Triangle {
-    int prim_id;
-    int mat_id;
-    vec3 v0, v1, v2;
-    vec3 n0, n1, n2;
-    vec2 t0, t1, t2;
+    int prim_id;     // 1
+    int mat_id;      // 1
+    vec3 v0, v1, v2; // 9
+    vec3 n0, n1, n2; // 9
+    vec2 t0, t1, t2; // 9 -> 29
+    float _pad[3];
 
     RA_METHOD bool intersect(Ray r, Hit&);
     RA_METHOD vec3 get_face_normal() const;
