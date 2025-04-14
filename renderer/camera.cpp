@@ -36,8 +36,9 @@ RA_FUNCTION vec3 camera_get_forward_vec(const Camera* cam, vec3 forward) {
 }
 
 RA_FUNCTION vec3 camera_get_left_vec(const Camera* cam) {
-    vec4 initial_forward(-1, 0, 0, 1);
-    mat4 matrix = invert_mat4(camera_rotation_matrix(cam));
-    vec4 result = mul_mat4_vec4f(matrix, initial_forward);
-    return vec3_scale(result.xyz, 1.0f / result.w);
+    return camera_get_forward_vec(cam, vec3(-1, 0, 0));
+}
+
+RA_FUNCTION vec3 camera_get_up_vec(const Camera* cam) {
+    return camera_get_forward_vec(cam, vec3(0, 1, 0));
 }

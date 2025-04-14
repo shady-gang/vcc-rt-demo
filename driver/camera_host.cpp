@@ -10,6 +10,8 @@ void camera_update(GLFWwindow* handle, CameraInput* input) {
     input->keys.back = glfwGetKey(handle, GLFW_KEY_S) == GLFW_PRESS;
     input->keys.left = glfwGetKey(handle, GLFW_KEY_A) == GLFW_PRESS;
     input->keys.right = glfwGetKey(handle, GLFW_KEY_D) == GLFW_PRESS;
+    input->keys.up = glfwGetKey(handle, GLFW_KEY_Q) == GLFW_PRESS;
+    input->keys.down = glfwGetKey(handle, GLFW_KEY_E) == GLFW_PRESS;
     if (input->should_capture)
         glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     else
@@ -38,7 +40,9 @@ bool camera_move_freelook(Camera* cam, CameraInput* input, CameraFreelookState* 
     if (input->keys.forward) {
         cam->position = vec3_add(cam->position, vec3_scale(camera_get_forward_vec(cam), state->fly_speed * delta));
         moved = true;
-    } else if (input->keys.back) {
+    }
+
+    if (input->keys.back) {
         cam->position = vec3_sub(cam->position, vec3_scale(camera_get_forward_vec(cam), state->fly_speed * delta));
         moved = true;
     }
@@ -46,9 +50,22 @@ bool camera_move_freelook(Camera* cam, CameraInput* input, CameraFreelookState* 
     if (input->keys.right) {
         cam->position = vec3_sub(cam->position, vec3_scale(camera_get_left_vec(cam), state->fly_speed * delta));
         moved = true;
-    } else if (input->keys.left) {
+    }
+
+    if (input->keys.left) {
         cam->position = vec3_add(cam->position, vec3_scale(camera_get_left_vec(cam), state->fly_speed * delta));
         moved = true;
     }
+
+    if (input->keys.down) {
+        cam->position = vec3_sub(cam->position, vec3_scale(camera_get_up_vec(cam), state->fly_speed * delta));
+        moved = true;
+    }
+
+    if (input->keys.up) {
+        cam->position = vec3_add(cam->position, vec3_scale(camera_get_up_vec(cam), state->fly_speed * delta));
+        moved = true;
+    }
+
     return moved;
 }
