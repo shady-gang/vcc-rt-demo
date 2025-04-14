@@ -14,6 +14,8 @@
 
 #include "model.h"
 
+const float CONSTANT_LIGHT_MULTIPLIER = 1;
+
 using namespace shady;
 
 // Will linearize using sRGB gamma function
@@ -213,7 +215,7 @@ Model::Model(const char* path, Device* device) {
         if (AI_SUCCESS != mat->Get(AI_MATKEY_EMISSIVE_INTENSITY, emission_strength))
             emission_strength = 0;
         
-        emission = emission_strength * emission;
+        emission = CONSTANT_LIGHT_MULTIPLIER * emission_strength * emission;
         if (color_average(emission) > 0)
             emissive_materials.insert(materials.size());
 
@@ -306,7 +308,7 @@ Model::Model(const char* path, Device* device) {
     // --------------- Lights
     if (emitters.empty() || (emitters.size() == 1 && color_average(emitters.at(0).emission) == 0)) {
         printf("No light given for scene. Adding default environment light.\n");
-        const Emitter env{ .emission = vec3(1/M_PI), .prim_id = -1 };
+        const Emitter env{ .emission = vec3(CONSTANT_LIGHT_MULTIPLIER * 1/M_PI), .prim_id = -1 };
         if(emitters.empty())
             emitters.push_back(env);
         else
