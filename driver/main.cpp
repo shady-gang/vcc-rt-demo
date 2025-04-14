@@ -221,12 +221,14 @@ int main(int argc, char** argv) {
         selected_physical_device->enable_extension_if_present(caps.device_extensions[i]);
     }
     selected_physical_device->enable_features_if_present(caps.features.base.features);
-    walk_pNext_chain((VkBaseInStructure*) caps.features.base.pNext, [&](VkBaseInStructure* s) {
-        auto t = s->pNext;
-        s->pNext = nullptr;
-        selected_physical_device->enable_extension_features_if_present(*s);
-        //s->pNext = t;
-    });
+
+    selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_extended_types);
+    selected_physical_device->enable_extension_features_if_present(caps.features.buffer_device_address);
+    selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_size_control);
+    selected_physical_device->enable_extension_features_if_present(caps.features.float_16_int8);
+    selected_physical_device->enable_extension_features_if_present(caps.features.storage8);
+    selected_physical_device->enable_extension_features_if_present(caps.features.storage16);
+    selected_physical_device->enable_extension_features_if_present(caps.features.rt_pipeline_features);
 
     imr::Device imr_device(context, *selected_physical_device);
     imr::Swapchain swapchain(imr_device, window);
@@ -265,10 +267,17 @@ int main(int argc, char** argv) {
     });
 
     shady::RunnerConfig runtime_config = {};
-    runtime_config.use_validation = true;
+    runtime_config.use_validation = false;
     runtime_config.dump_spv = true;
     compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
+#ifdef RA_USE_RT_PIPELINES
+    compiler_config.dynamic_scheduling = false;
+    compiler_config.use_rt_pipelines_for_calls = true;
+#endif
+#ifdef RA_USE_SCRATCH_PRIVATE
+    compiler_config.lower.use_scratch_for_private = true;
+#endif
     shady::shd_rn_provide_vkinstance(context.instance);
     shady::Runner* runner = shd_rn_initialize(runtime_config);
     shady::Device* device = nullptr;
@@ -427,6 +436,11 @@ int main(int argc, char** argv) {
                 shady::ExtraKernelOptions launch_options = {
                     .profiled_gpu_time = &render_time,
                 };
+#ifdef RA_USE_RT_PIPELINES
+                if (shd_rn_get_device_backend(device) == shady::VulkanRuntimeBackend)
+                    shd_rn_wait_completion(shd_vkr_launch_rays(program, device, "render_a_pixel", WIDTH, HEIGHT, 1, args.size(), args.data(), &launch_options));
+                else
+#endif
                 shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
             } else {
                 auto then = time();
