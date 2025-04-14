@@ -11,6 +11,8 @@
 #include "imr/imr.h"
 #include "GLFW/glfw3.h"
 
+void save_image(const char* filename, void* buffer, int width, int height, int channels);
+
 extern "C" {
 namespace shady {
 
@@ -93,6 +95,8 @@ RenderMode render_mode = DEFAULT_RENDER_MODE;
 
 int max_frames = 0;
 int nframe = 0, accum = 0;
+
+bool screenshotRequested = false;
 
 template<typename T>
 auto walk_pNext_chain(VkBaseInStructure* s, T t) {
@@ -271,6 +275,9 @@ int main(int argc, char** argv) {
         }
         if (action == GLFW_PRESS && key == GLFW_KEY_EQUAL) {
             camera.fov += 0.02f;
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_F8) {
+            screenshotRequested = true;
         }
     });
 
@@ -512,6 +519,22 @@ int main(int argc, char** argv) {
                 vkUnmapMemory(imr_device.device, fallback_buffer->memory);
                 frame.presentFromBuffer(fallback_buffer->handle, fence, std::nullopt);
             }
+
+            if (screenshotRequested) {
+                if (gpu)
+                    shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+                if (!fallback_buffer)
+                    fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                uint8_t* mapped_buffer;
+                CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
+                memcpy(mapped_buffer, cpu_fb, fb_size);
+                vkUnmapMemory(imr_device.device, fallback_buffer->memory);
+
+                save_image("screenshot.png", cpu_fb, nwidth, nheight, 4);
+                printf("Screenshot saved to 'screenshot.png'\n");
+                screenshotRequested = false;
+            }
+
             vkWaitForFences(imr_device.device, 1, &fence, VK_TRUE, UINT64_MAX);
             vkDestroyFence(imr_device.device, fence, nullptr);
         });
