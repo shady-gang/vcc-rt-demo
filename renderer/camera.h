@@ -28,7 +28,7 @@ typedef struct {
     bool should_capture;
     double mouse_x, mouse_y;
     struct {
-        bool forward, back, left, right;
+        bool forward, back, left, right, up, down;
     } keys;
 } CameraInput;
 
