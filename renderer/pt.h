@@ -3,8 +3,8 @@
 
 #include "bvh.h"
 #include "random.h"
+#include "rendercontext.h"
 
-struct RenderContext;
 RA_FUNCTION vec3 pathtrace(RNGState* rng, Ray ray, int depth, vec3 throughput, float prev_pdf, const RenderContext& ctx);
 
 #endif

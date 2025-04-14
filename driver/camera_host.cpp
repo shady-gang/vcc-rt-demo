@@ -25,8 +25,8 @@ bool camera_move_freelook(Camera* cam, CameraInput* input, CameraFreelookState* 
             double diff_y = input->mouse_y - state->last_mouse_y;
 
             camera_update_orientation_from_yaw_pitch(cam, 
-                (float) diff_x / 180.0f * (float) M_PI * state->mouse_sensitivity / 100,
-                (float) diff_y / 180.0f * (float) M_PI * state->mouse_sensitivity / 100);
+                (float) diff_x / 180.0f * (float) M_PI * state->mouse_sensitivity / 50,
+                (float) diff_y / 180.0f * (float) M_PI * state->mouse_sensitivity / 50);
 
             moved = true;
         } else
@@ -47,10 +47,10 @@ bool camera_move_freelook(Camera* cam, CameraInput* input, CameraFreelookState* 
     }
 
     if (input->keys.right) {
-        cam->position = vec3_add(cam->position, vec3_scale(cam->right, state->fly_speed * delta));
+        cam->position = vec3_sub(cam->position, vec3_scale(cam->right, state->fly_speed * delta));
         moved = true;
     } else if (input->keys.left) {
-        cam->position = vec3_sub(cam->position, vec3_scale(cam->right, state->fly_speed * delta));
+        cam->position = vec3_add(cam->position, vec3_scale(cam->right, state->fly_speed * delta));
         moved = true;
     }
     return moved;

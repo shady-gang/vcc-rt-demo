@@ -4,7 +4,6 @@
 #include "shading.h"
 #include "emitter.h"
 #include "bsdf.h"
-#include "rendercontext.h"
 
 RA_FUNCTION inline int sample_emitter(RNGState* rng, int num_lights) {
     return (int)randi_max(rng, num_lights);

@@ -354,7 +354,7 @@ int main(int argc, char** argv) {
         camera.direction = vec3(0,0,1);
         camera.up = vec3(0,1,0);
         camera.right = vec3(1,0,0);
-        camera_update_orientation_from_yaw_pitch(&camera, yaw, pitch);
+        camera_update_orientation_from_yaw_pitch(&camera, cmd_args.camera_rot->x, cmd_args.camera_rot->y);
     }
 
     if (cmd_args.camera_dir.has_value())

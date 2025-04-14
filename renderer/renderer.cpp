@@ -169,7 +169,7 @@ RA_RENDERER_SIGNATURE {
             RenderContext ctx {
                 .primitives = triangles,
                 .materials = materials,
-                .num_lights = nlights, // Note: there is always an evironment map (but maybe black though)
+                .num_lights = nlights, // Note: there is always an environment map (but maybe black though)
                 .emitters = emitters,
                 .bvh = &bvh,
                 .textures = TextureSystem {

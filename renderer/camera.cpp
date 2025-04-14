@@ -43,5 +43,5 @@ RA_FUNCTION void camera_update_orientation_from_yaw_pitch(Camera* cam, float yaw
     mat3 yu  = rotate_around_axis(yaw, cam->up);
     mat3 pr  = rotate_around_axis(-pitch, cam->right);
     mat3 rot = mul_mat3(yu, pr);
-    camera_update_orientation(cam, mul_mat3_vec3(rot, cam->direction), mul_mat3_vec3(rot, cam->up));
+    camera_update_orientation(cam, mul_mat3_vec3(rot, cam->direction), cam->up);
 }
