@@ -1,4 +1,4 @@
-add_executable(ra main.cpp util.c driver.cpp model.cpp camera_host.cpp bvh_host.cpp)
+add_executable(ra main.cpp util.c driver.cpp model.cpp camera_host.cpp bvh_host.cpp image_out.cpp)
 target_include_directories(ra PRIVATE ${PROJECT_SOURCE_DIR}/stb)
 target_link_libraries(ra PRIVATE Vulkan::Vulkan glfw imr)
 target_link_libraries(ra PRIVATE bvh)
