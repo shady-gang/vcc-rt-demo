@@ -50,14 +50,18 @@ inline RA_FUNCTION TextureTexel map_uv_to_image_pixel(vec2 uv, const Texture& te
     };
 }
 
+inline RA_FUNCTION int safe_mod(int denom, int num) {
+    return denom - (denom / num * num);
+}
+
 inline RA_FUNCTION vec3 lookup_texture(vec2 uv, const Texture& tex) {
     const auto texel = map_uv_to_image_pixel(uv, tex);
 
     // Clamp border
-    int x0 = clamp(texel.ix + 0, 0, tex.width  - 1);
-    int y0 = clamp(texel.iy + 0, 0, tex.height - 1);
-    int x1 = clamp(texel.ix + 1, 0, tex.width  - 1);
-    int y1 = clamp(texel.iy + 1, 0, tex.height - 1);
+    int x0 = safe_mod(texel.ix + 0, tex.width  - 1); //clamp(texel.ix + 0, 0, tex.width  - 1);
+    int y0 = safe_mod(texel.iy + 0, tex.height - 1); //clamp(texel.iy + 0, 0, tex.height - 1);
+    int x1 = safe_mod(texel.ix + 1, tex.width  - 1); //clamp(texel.ix + 1, 0, tex.width  - 1);
+    int y1 = safe_mod(texel.iy + 1, tex.height - 1); //clamp(texel.iy + 1, 0, tex.height - 1);
 
     // Bilinear filtering
     vec3 p00 = fetch_texture_unsafe(x0, y0, tex);
