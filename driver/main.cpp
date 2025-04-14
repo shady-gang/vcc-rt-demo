@@ -109,6 +109,7 @@ struct CommandArguments {
     std::optional<vec3> camera_eye;
     std::optional<vec3> camera_dir;
     std::optional<vec3> camera_up;
+    std::optional<vec2> camera_rot;
     std::optional<float> camera_fov;
 };
 
@@ -157,6 +158,13 @@ int main(int argc, char** argv) {
             pos.y = strtof(argv[++i], nullptr);
             pos.z = strtof(argv[++i], nullptr);
             cmd_args.camera_eye = pos;
+            continue;
+        }
+        if (strcmp(argv[i], "--rotation") == 0) {
+            vec2 rot;
+            rot.x = strtof(argv[++i], nullptr);
+            rot.y = strtof(argv[++i], nullptr);
+            cmd_args.camera_rot = rot;
             continue;
         }
         if (strcmp(argv[i], "--dir") == 0) {
@@ -340,6 +348,14 @@ int main(int argc, char** argv) {
 
     if (cmd_args.camera_eye.has_value())
         camera.position = *cmd_args.camera_eye;
+
+    if (cmd_args.camera_rot.has_value()) {
+        // Simulate old behaviour 
+        camera.direction = vec3(0,0,1);
+        camera.up = vec3(0,1,0);
+        camera.right = vec3(1,0,0);
+        camera_update_orientation_from_yaw_pitch(&camera, yaw, pitch);
+    }
 
     if (cmd_args.camera_dir.has_value())
         camera.direction = *cmd_args.camera_dir;

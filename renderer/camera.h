@@ -33,6 +33,7 @@ typedef struct {
 } CameraInput;
 
 RA_FUNCTION void camera_update_orientation(Camera* cam, vec3 ndir, vec3 nup);
+RA_FUNCTION void camera_update_orientation_from_yaw_pitch(Camera* cam, float yaw, float pitch);
 
 RA_FUNCTION bool camera_move_freelook(Camera*, CameraInput*, CameraFreelookState*, float);
 
