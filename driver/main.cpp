@@ -439,9 +439,9 @@ int main(int argc, char** argv) {
                 uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
                 args.push_back(&ptr_emitters);
                 args.push_back(&bvh.gpu_bvh);
-                uint64_t ptr_tex = shd_rn_get_buffer_device_pointer(model.textures_gpu);
+                uint64_t ptr_tex = model.textures_gpu ? shd_rn_get_buffer_device_pointer(model.textures_gpu) : 0;
                 args.push_back(&ptr_tex);
-                uint64_t ptr_tex_data = shd_rn_get_buffer_device_pointer(model.texture_data_gpu);
+                uint64_t ptr_tex_data = model.texture_data_gpu ? shd_rn_get_buffer_device_pointer(model.texture_data_gpu) : 0;
                 args.push_back(&ptr_tex_data);
                 args.push_back(&frame);
                 args.push_back(&accum);
