@@ -96,6 +96,7 @@ RenderMode render_mode = DEFAULT_RENDER_MODE;
 
 int max_frames = 0;
 int nframe = 0, accum = 0;
+int runs = 1;
 
 bool screenshotRequested = false;
 
@@ -130,6 +131,10 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--frames") == 0) {
             max_frames = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(argv[i], "--runs") == 0) {
+            runs = atoi(argv[++i]);
             continue;
         }
         if (strcmp(argv[i], "--no-bvh") == 0) {
@@ -539,42 +544,47 @@ int main(int argc, char** argv) {
         printf("Screenshot saved to 'screenshot.png'\n");
     };
 
-    //glfwSwapInterval(1);
-    while ((max_frames == 0 || nframe < max_frames) && (!window || !glfwWindowShouldClose(window))) {
-        using Frame = imr::Swapchain::Frame;
-        if (headless)
-            render_frame();
-        else
-            swapchain->beginFrame([&](Frame& frame) {
-                int nwidth = frame.width, nheight = frame.height;
-                set_size(nwidth, nheight);
+    for (int run = 0; run < runs; run++) {
+        nframe = 0;
+        total_time = 0;
+        accum = 0;
 
-                camera_update(window, &camera_input);
-                if (camera_move_freelook(&camera, &camera_input, &camera_state, delta))
-                    accum = 0;
-
+        while ((max_frames == 0 || nframe < max_frames) && (!window || !glfwWindowShouldClose(window))) {
+            using Frame = imr::Swapchain::Frame;
+            if (headless)
                 render_frame();
+            else
+                swapchain->beginFrame([&](Frame& frame) {
+                    int nwidth = frame.width, nheight = frame.height;
+                    set_size(nwidth, nheight);
 
-                if (screenshotRequested) {
-                    save_screenshot();
-                    screenshotRequested = false;
-                }
+                    camera_update(window, &camera_input);
+                    if (camera_move_freelook(&camera, &camera_input, &camera_state, delta))
+                        accum = 0;
 
-                fps_counter.tick();
-                fps_counter.updateGlfwWindowTitle(window);
-                glfwPollEvents();
+                    render_frame();
 
-                present_frame(frame);
-            });
+                    if (screenshotRequested) {
+                        save_screenshot();
+                        screenshotRequested = false;
+                    }
 
-        nframe++;
-        accum++;
+                    fps_counter.tick();
+                    fps_counter.updateGlfwWindowTitle(window);
+                    glfwPollEvents();
+
+                    present_frame(frame);
+                });
+
+            nframe++;
+            accum++;
+        }
+
+        printf("Rendered %d frames in %zums\n", nframe, total_time / (1000 * 1000));
+
+        if (headless)
+            save_screenshot();
     }
-
-    printf("Rendered %d frames in %zums\n", nframe, total_time / (1000 * 1000));
-
-    if (headless)
-        save_screenshot();
 
     shady::shd_rn_destroy_buffer(gpu_fb);
     shady::shd_rn_shutdown(runner);
