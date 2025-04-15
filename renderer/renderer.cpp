@@ -192,7 +192,7 @@ RA_RENDERER_SIGNATURE {
                 .enable_nee = (mode == PT_NEE) && nlights > 1
             };
 
-            vec3 color = clamp(pathtrace(&rng, r, 0, vec3(1.0f), 1.0f, ctx), vec3(0.0), vec3(9999.0f));
+            vec3 color = clamp(pathtrace(&rng, r, 0, vec3(1.0f), 1.0f, ctx), vec3(0.0), vec3(100.0f));
 
             vec3 film_data = vec3(0);
             if (accum > 0) {
