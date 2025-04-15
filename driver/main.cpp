@@ -88,6 +88,7 @@ thread_local vec2 gl_GlobalInvocationID;
 RA_RENDERER_SIGNATURE;
 }
 
+bool headless = false;
 bool gpu = true;
 bool cuda = false;
 bool use_bvh = true;
@@ -141,6 +142,10 @@ int main(int argc, char** argv) {
         }
         if (strcmp(argv[i], "--cuda") == 0) {
             cuda = true;
+            continue;
+        }
+        if (strcmp(argv[i], "--headless") == 0) {
+            headless = true;
             continue;
         }
         if (strcmp(argv[i], "--size") == 0) {
@@ -200,11 +205,15 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Example", nullptr, nullptr);
-    if (!window)
-        return 0;
+    GLFWwindow* window = nullptr;
+
+    if (!headless) {
+        glfwInit();
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        window = glfwCreateWindow(WIDTH, HEIGHT, "Example", nullptr, nullptr);
+        if (!window)
+            return 0;
+    }
 
     vkb::SystemInfo system_info = vkb::SystemInfo::get_system_info().value();
     imr::Context context([&](vkb::InstanceBuilder& b) {
@@ -243,43 +252,46 @@ int main(int argc, char** argv) {
     selected_physical_device->enable_extension_features_if_present(caps.features.rt_pipeline_features);
 
     imr::Device imr_device(context, *selected_physical_device);
-    imr::Swapchain swapchain(imr_device, window);
     imr::FpsCounter fps_counter;
+    std::unique_ptr<imr::Swapchain> swapchain;
 
-    glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-        const bool shiftPressed = (mods & GLFW_MOD_SHIFT) == GLFW_MOD_SHIFT;
-        if (action == GLFW_PRESS && key == GLFW_KEY_T) {
-            gpu = !gpu;
-            accum = 0;
-        } if (action == GLFW_PRESS && key == GLFW_KEY_B) {
-            use_bvh = !use_bvh;
-        } if (action == GLFW_PRESS && key == GLFW_KEY_H) {
-            if (shiftPressed) {
-                if (render_mode == (RenderMode)0)
-                    render_mode = MAX_RENDER_MODE;
-                else
-                    render_mode = (RenderMode) (render_mode - 1);
-            } else {
-                render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
+    if (!headless) {
+        swapchain = std::make_unique<imr::Swapchain>(imr_device, window);
+        glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+            const bool shiftPressed = (mods & GLFW_MOD_SHIFT) == GLFW_MOD_SHIFT;
+            if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+                gpu = !gpu;
+                accum = 0;
+            } if (action == GLFW_PRESS && key == GLFW_KEY_B) {
+                use_bvh = !use_bvh;
+            } if (action == GLFW_PRESS && key == GLFW_KEY_H) {
+                if (shiftPressed) {
+                    if (render_mode == (RenderMode)0)
+                        render_mode = MAX_RENDER_MODE;
+                    else
+                        render_mode = (RenderMode) (render_mode - 1);
+                } else {
+                    render_mode = (RenderMode) ((render_mode + 1) % (MAX_RENDER_MODE + 1));
+                }
+                accum = 0;
+            } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
+                printf("--position %f %f %f --dir %f %f %f --up %f %f %f --fov %f\n",
+                    (float) camera.position.x, (float) camera.position.y, (float) camera.position.z,
+                    (float) camera.direction.x, (float) camera.direction.y, (float) camera.direction.z,
+                    (float) camera.up.x, (float) camera.up.y, (float) camera.up.z,
+                    (float) camera.fov);
             }
-            accum = 0;
-        } if (action == GLFW_PRESS && key == GLFW_KEY_F4) {
-            printf("--position %f %f %f --dir %f %f %f --up %f %f %f --fov %f\n",
-                (float) camera.position.x, (float) camera.position.y, (float) camera.position.z, 
-                (float) camera.direction.x, (float) camera.direction.y, (float) camera.direction.z, 
-                (float) camera.up.x, (float) camera.up.y, (float) camera.up.z, 
-                (float) camera.fov);
-        }
-        if (action == GLFW_PRESS && key == GLFW_KEY_MINUS) {
-            camera.fov -= 0.02f;
-        }
-        if (action == GLFW_PRESS && key == GLFW_KEY_EQUAL) {
-            camera.fov += 0.02f;
-        }
-        if (action == GLFW_PRESS && key == GLFW_KEY_F8) {
-            screenshotRequested = true;
-        }
-    });
+            if (action == GLFW_PRESS && key == GLFW_KEY_MINUS) {
+                camera.fov -= 0.02f;
+            }
+            if (action == GLFW_PRESS && key == GLFW_KEY_EQUAL) {
+                camera.fov += 0.02f;
+            }
+            if (action == GLFW_PRESS && key == GLFW_KEY_F8) {
+                screenshotRequested = true;
+            }
+        });
+    }
 
     shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = false;
@@ -381,9 +393,7 @@ int main(int argc, char** argv) {
          (float)camera.up.x, (float)camera.up.y, (float)camera.up.z);
 
     // Setup other stuff
-    auto epoch = time();
-    auto prev_frame = epoch;
-    int frames_in_epoch = 0;
+    auto prev_frame = time();
     uint64_t total_time = 0;
 
     // if we're not using the presenting Vulkan device to render, we need to upload the frame to it.
@@ -391,161 +401,180 @@ int main(int argc, char** argv) {
 
     float delta = 0;
 
-    //glfwSwapInterval(1);
-    while ((max_frames == 0 || nframe < max_frames) && !glfwWindowShouldClose(window)) {
-        using Frame = imr::Swapchain::Frame;
-        swapchain.beginFrame([&](Frame& frame) {
-            int nwidth = frame.width, nheight = frame.height;
+    auto set_size = [&](int nwidth, int nheight) {
+        int fb_size = sizeof(uint32_t) * nwidth * nheight;
+        int film_size = sizeof(float) * nwidth * nheight * 3;
 
-            int fb_size = sizeof(uint32_t) * nwidth * nheight;
-            int film_size = sizeof(float) * nwidth * nheight * 3;
-            if (!cpu_fb || (nwidth != WIDTH || nheight != HEIGHT) && nwidth * nheight > 0) {
-                WIDTH = nwidth;
-                HEIGHT = nheight;
-                free(cpu_fb);
-                free(cpu_film);
-                cpu_fb = static_cast<uint32_t*>(malloc(fb_size));
-                cpu_film = (float*) malloc(film_size);
-                // reallocate fb
-                if (gpu_fb)
-                    shd_rn_destroy_buffer(gpu_fb);
-                gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
-                fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
+        if (!cpu_fb || (nwidth != WIDTH || nheight != HEIGHT) && nwidth * nheight > 0) {
+            WIDTH = nwidth;
+            HEIGHT = nheight;
+            free(cpu_fb);
+            free(cpu_film);
+            cpu_fb = static_cast<uint32_t*>(malloc(fb_size));
+            cpu_film = (float*) malloc(film_size);
+            // reallocate fb
+            if (gpu_fb)
+                shd_rn_destroy_buffer(gpu_fb);
+            gpu_fb = shd_rn_allocate_buffer_device(device, fb_size);
+            fb_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_fb);
 
-                if (gpu_film)
-                    shd_rn_destroy_buffer(gpu_film);
-                gpu_film = shd_rn_allocate_buffer_device(device, film_size);
-                film_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_film);
-                accum = 0;
+            if (gpu_film)
+                shd_rn_destroy_buffer(gpu_film);
+            gpu_film = shd_rn_allocate_buffer_device(device, film_size);
+            film_gpu_addr = shd_rn_get_buffer_device_pointer(gpu_film);
+            accum = 0;
 
-                fallback_buffer.reset();
-            }
+            fallback_buffer.reset();
+        }
+    };
 
-            camera_update(window, &camera_input);
-            if (camera_move_freelook(&camera, &camera_input, &camera_state, delta))
-                accum = 0;
+    set_size(WIDTH, HEIGHT);
 
-            uint64_t render_time;
-            if (gpu) {
-                std::vector<void*> args;
-                args.push_back(&camera);
-                args.push_back(&WIDTH);
-                args.push_back(&HEIGHT);
-                args.push_back(&fb_gpu_addr);
-                args.push_back(&film_gpu_addr);
-                int ntris = model.triangles.size();
-                if (use_bvh)
-                    ntris = 0;
-                args.push_back(&ntris);
-                uint64_t ptr_tris = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
-                args.push_back(&ptr_tris);
-                uint64_t ptr_mats = shd_rn_get_buffer_device_pointer(model.materials_gpu);
-                args.push_back(&ptr_mats);
-                int nlights = model.emitters.size();
-                args.push_back(&nlights);
-                uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
-                args.push_back(&ptr_emitters);
-                args.push_back(&bvh.gpu_bvh);
-                uint64_t ptr_tex = model.textures_gpu ? shd_rn_get_buffer_device_pointer(model.textures_gpu) : 0;
-                args.push_back(&ptr_tex);
-                uint64_t ptr_tex_data = model.texture_data_gpu ? shd_rn_get_buffer_device_pointer(model.texture_data_gpu) : 0;
-                args.push_back(&ptr_tex_data);
-                args.push_back(&frame);
-                args.push_back(&accum);
-                args.push_back(&render_mode);
-                args.push_back(&cmd_args.max_depth);
-                //BVH* gpu_bvh = bvh.gpu_bvh;
+    auto render_frame = [&] () {
+        uint64_t render_time;
+        if (gpu) {
+            std::vector<void*> args;
+            args.push_back(&camera);
+            args.push_back(&WIDTH);
+            args.push_back(&HEIGHT);
+            args.push_back(&fb_gpu_addr);
+            args.push_back(&film_gpu_addr);
+            int ntris = model.triangles.size();
+            if (use_bvh)
+                ntris = 0;
+            args.push_back(&ntris);
+            uint64_t ptr_tris = shd_rn_get_buffer_device_pointer(model.triangles_gpu);
+            args.push_back(&ptr_tris);
+            uint64_t ptr_mats = shd_rn_get_buffer_device_pointer(model.materials_gpu);
+            args.push_back(&ptr_mats);
+            int nlights = model.emitters.size();
+            args.push_back(&nlights);
+            uint64_t ptr_emitters = shd_rn_get_buffer_device_pointer(model.emitters_gpu);
+            args.push_back(&ptr_emitters);
+            args.push_back(&bvh.gpu_bvh);
+            uint64_t ptr_tex = model.textures_gpu ? shd_rn_get_buffer_device_pointer(model.textures_gpu) : 0;
+            args.push_back(&ptr_tex);
+            uint64_t ptr_tex_data = model.texture_data_gpu ? shd_rn_get_buffer_device_pointer(model.texture_data_gpu) : 0;
+            args.push_back(&ptr_tex_data);
+            args.push_back(&nframe);
+            args.push_back(&accum);
+            args.push_back(&render_mode);
+            args.push_back(&cmd_args.max_depth);
+            //BVH* gpu_bvh = bvh.gpu_bvh;
 
-                shady::ExtraKernelOptions launch_options = {
-                    .profiled_gpu_time = &render_time,
-                };
+            shady::ExtraKernelOptions launch_options = {
+                .profiled_gpu_time = &render_time,
+            };
 #ifdef RA_USE_RT_PIPELINES
-                if (shd_rn_get_device_backend(device) == shady::VulkanRuntimeBackend)
-                    shd_rn_wait_completion(shd_vkr_launch_rays(program, device, "render_a_pixel", WIDTH, HEIGHT, 1, args.size(), args.data(), &launch_options));
-                else
+            if (shd_rn_get_device_backend(device) == shady::VulkanRuntimeBackend)
+                shd_rn_wait_completion(shd_vkr_launch_rays(program, device, "render_a_pixel", WIDTH, HEIGHT, 1, args.size(), args.data(), &launch_options));
+            else
 #endif
-                shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
-            } else {
-                auto then = time();
-                #pragma omp parallel for
-                for (int x = 0; x < WIDTH; x++) {
-                    #pragma omp simd
-                    for (int y = 0; y < HEIGHT; y++) {
-                        gl_GlobalInvocationID.x = x;
-                        gl_GlobalInvocationID.y = y;
-                        int ntris = model.triangles.size();
-                        if (use_bvh)
-                            ntris = 0;
-                        int nlights = model.emitters.size();
-                        render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film, 
-                            ntris, model.triangles.data(), model.materials.data(), nlights, model.emitters.data(), 
-                            bvh.host_bvh, model.textures.data(), model.texture_data.data(),
-                            nframe, accum, render_mode, cmd_args.max_depth);
-                    }
+            shd_rn_wait_completion(shd_rn_launch_kernel(program, device, "render_a_pixel", (WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1, args.size(), args.data(), &launch_options));
+        } else {
+            auto then = time();
+            #pragma omp parallel for
+            for (int x = 0; x < WIDTH; x++) {
+                #pragma omp simd
+                for (int y = 0; y < HEIGHT; y++) {
+                    gl_GlobalInvocationID.x = x;
+                    gl_GlobalInvocationID.y = y;
+                    int ntris = model.triangles.size();
+                    if (use_bvh)
+                        ntris = 0;
+                    int nlights = model.emitters.size();
+                    render_a_pixel(camera, WIDTH, HEIGHT, cpu_fb, cpu_film,
+                        ntris, model.triangles.data(), model.materials.data(), nlights, model.emitters.data(),
+                        bvh.host_bvh, model.textures.data(), model.texture_data.data(),
+                        nframe, accum, render_mode, cmd_args.max_depth);
                 }
-                auto now = time();
-                render_time = now - then;
             }
-
-            frames_in_epoch++;
             auto now = time();
-            total_time += render_time;
-            auto delta_ns = now - epoch;
-            if (delta_ns > 1000000000) {
-                assert(frames_in_epoch > 0);
-                auto avg_time = total_time / frames_in_epoch;
-                glfwSetWindowTitle(window, (std::string("Average frametime: ") + std::to_string(avg_time / 1000) + "us, over" + std::to_string(frames_in_epoch) + "frames.").c_str());
-                frames_in_epoch = 0;
-                total_time = 0;
-                epoch = now;
-            }
-            delta = (float) ((now - prev_frame) / 1000000) / 1000.0f;
-            prev_frame = now;
+            render_time = now - then;
+        }
 
-            VkFence fence;
-            vkCreateFence(imr_device.device, tmp((VkFenceCreateInfo) {
-                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            }), nullptr, &fence);
-            if (!cuda && gpu) {
-                frame.presentFromBuffer(shady::shd_rn_get_vkbuffer(gpu_fb), fence, std::nullopt);
-            } else {
-                if (gpu)
-                    shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
-                if (!fallback_buffer)
-                    fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                uint8_t* mapped_buffer;
-                CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
-                memcpy(mapped_buffer, cpu_fb, fb_size);
-                vkUnmapMemory(imr_device.device, fallback_buffer->memory);
-                frame.presentFromBuffer(fallback_buffer->handle, fence, std::nullopt);
-            }
+        auto now = time();
+        total_time += render_time;
+        delta = (float) ((now - prev_frame) / 1000000) / 1000.0f;
+        prev_frame = now;
+    };
 
-            if (screenshotRequested) {
-                if (gpu)
-                    shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
-                if (!fallback_buffer)
-                    fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                uint8_t* mapped_buffer;
-                CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
-                memcpy(mapped_buffer, cpu_fb, fb_size);
-                vkUnmapMemory(imr_device.device, fallback_buffer->memory);
+    auto present_frame = [&](imr::Swapchain::Frame& frame) {
+        int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
+        VkFence fence;
+        vkCreateFence(imr_device.device, tmp((VkFenceCreateInfo) {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        }), nullptr, &fence);
+        if (!cuda && gpu) {
+            frame.presentFromBuffer(shady::shd_rn_get_vkbuffer(gpu_fb), fence, std::nullopt);
+        } else {
+            if (gpu)
+                shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+            if (!fallback_buffer)
+                fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            uint8_t* mapped_buffer;
+            CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
+            memcpy(mapped_buffer, cpu_fb, fb_size);
+            vkUnmapMemory(imr_device.device, fallback_buffer->memory);
+            frame.presentFromBuffer(fallback_buffer->handle, fence, std::nullopt);
+        }
 
-                save_image("screenshot.png", cpu_fb, nwidth, nheight, 4);
-                printf("Screenshot saved to 'screenshot.png'\n");
-                screenshotRequested = false;
-            }
+        vkWaitForFences(imr_device.device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkDestroyFence(imr_device.device, fence, nullptr);
+    };
 
-            vkWaitForFences(imr_device.device, 1, &fence, VK_TRUE, UINT64_MAX);
-            vkDestroyFence(imr_device.device, fence, nullptr);
-        });
+    auto save_screenshot = [&]() {
+        int fb_size = sizeof(uint32_t) * WIDTH * HEIGHT;
+
+        if (gpu)
+            shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
+        if (!fallback_buffer)
+            fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        uint8_t* mapped_buffer;
+        CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
+        memcpy(mapped_buffer, cpu_fb, fb_size);
+        vkUnmapMemory(imr_device.device, fallback_buffer->memory);
+
+        save_image("screenshot.png", cpu_fb, WIDTH, HEIGHT, 4);
+        printf("Screenshot saved to 'screenshot.png'\n");
+    };
+
+    //glfwSwapInterval(1);
+    while ((max_frames == 0 || nframe < max_frames) && (!window || !glfwWindowShouldClose(window))) {
+        using Frame = imr::Swapchain::Frame;
+        if (headless)
+            render_frame();
+        else
+            swapchain->beginFrame([&](Frame& frame) {
+                int nwidth = frame.width, nheight = frame.height;
+                set_size(nwidth, nheight);
+
+                camera_update(window, &camera_input);
+                if (camera_move_freelook(&camera, &camera_input, &camera_state, delta))
+                    accum = 0;
+
+                render_frame();
+
+                if (screenshotRequested) {
+                    save_screenshot();
+                    screenshotRequested = false;
+                }
+
+                fps_counter.tick();
+                fps_counter.updateGlfwWindowTitle(window);
+                glfwPollEvents();
+
+                present_frame(frame);
+            });
 
         nframe++;
         accum++;
-
-        fps_counter.tick();
-        fps_counter.updateGlfwWindowTitle(window);
-        glfwPollEvents();
     }
+
+    printf("Rendered %d frames in %zums\n", nframe, total_time / (1000 * 1000));
+
+    if (headless)
+        save_screenshot();
 
     shady::shd_rn_destroy_buffer(gpu_fb);
     shady::shd_rn_shutdown(runner);

@@ -2,7 +2,7 @@
 
 using namespace nasl;
 
-static inline mat3 rotate_around_axis(float angle, vec3 axis) {
+RA_FUNCTION static inline mat3 rotate_around_axis(float angle, vec3 axis) {
     float s = sinf(angle);
     float c = cosf(angle);
     
@@ -25,7 +25,7 @@ static inline mat3 rotate_around_axis(float angle, vec3 axis) {
     };
 }
 
-static inline vec3 mul_mat3_vec3(mat3 m, vec3 v) {
+RA_FUNCTION static inline vec3 mul_mat3_vec3(mat3 m, vec3 v) {
     return vec3 {
         m.elems.m00 * v.x + m.elems.m01 * v.y + m.elems.m02 * v.z,
         m.elems.m10 * v.x + m.elems.m11 * v.y + m.elems.m12 * v.z,
