@@ -5,19 +5,21 @@
 #include "pt.h"
 
 RA_FUNCTION uint32_t pack_color(vec3 color) {
-    color = clamp(color, vec3(0.0f), vec3(1.0f));
     // color.x = sqrtf(color.x);
     // color.y = sqrtf(color.y);
     // color.z = sqrtf(color.z);
 
-    color.x = color.x / (color.x + 1);
-    color.y = color.y / (color.y + 1);
-    color.z = color.z / (color.z + 1);
+    float lum = color_luminance(color);
+    float tonemap = (1 + lum / 16) / (1 + lum);
+    color.x = color.x * tonemap;
+    color.y = color.y * tonemap;
+    color.z = color.z * tonemap;
 
     color.x = powf(color.x, 1 / 2.2f);
     color.y = powf(color.y, 1 / 2.2f);
     color.z = powf(color.z, 1 / 2.2f);
 
+    color = clamp(color, vec3(0.0f), vec3(1.0f));
     color = color.zyx;
     return (((int) (color.z * 255) & 0xFF) << 16) | (((int) (color.y * 255) & 0xFF) << 8) | ((int) (color.x * 255) & 0xFF);
 }
