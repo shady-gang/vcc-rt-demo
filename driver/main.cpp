@@ -531,7 +531,7 @@ int main(int argc, char** argv) {
             if (gpu)
                 shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
             if (!fallback_buffer)
-                fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
             uint8_t* mapped_buffer;
             CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
             memcpy(mapped_buffer, cpu_fb, fb_size);
@@ -549,7 +549,7 @@ int main(int argc, char** argv) {
         if (gpu)
             shd_rn_copy_from_buffer(gpu_fb, 0, cpu_fb, fb_size);
         if (!fallback_buffer)
-            fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            fallback_buffer = std::make_unique<imr::Buffer>(imr_device, fb_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         uint8_t* mapped_buffer;
         CHECK_VK(vkMapMemory(imr_device.device, fallback_buffer->memory, fallback_buffer->memory_offset, fallback_buffer->size, 0, (void**) &mapped_buffer), abort());
         memcpy(mapped_buffer, cpu_fb, fb_size);
