@@ -248,13 +248,28 @@ int main(int argc, char** argv) {
     }
     selected_physical_device->enable_features_if_present(caps.features.base.features);
 
-    selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_extended_types);
-    selected_physical_device->enable_extension_features_if_present(caps.features.buffer_device_address);
-    selected_physical_device->enable_extension_features_if_present(caps.features.subgroup_size_control);
-    selected_physical_device->enable_extension_features_if_present(caps.features.float_16_int8);
-    selected_physical_device->enable_extension_features_if_present(caps.features.storage8);
-    selected_physical_device->enable_extension_features_if_present(caps.features.storage16);
-    selected_physical_device->enable_extension_features_if_present(caps.features.rt_pipeline_features);
+    struct PaddedVkStruct {
+        VkBaseInStructure base;
+        VkBool32 padding[256];
+    };
+
+    size_t ext_features_len;
+    shady::shd_rt_get_device_caps_ext_features(&caps, &ext_features_len, nullptr, nullptr);
+    std::vector<VkBaseInStructure*> ext_features;
+    ext_features.resize(ext_features_len);
+    std::vector<size_t> ext_features_lens;
+    ext_features_lens.resize(ext_features_len);
+    shady::shd_rt_get_device_caps_ext_features(&caps, &ext_features_len, ext_features.data(), ext_features_lens.data());
+
+    for (size_t i = 0; i < ext_features_len; i++) {
+        auto feature = ext_features[i];
+        if (feature->sType) {
+            PaddedVkStruct padded = {};
+            memset(&padded, 0, sizeof(padded));
+            memcpy(&padded, feature, ext_features_lens[i]);
+            selected_physical_device->enable_extension_features_if_present(padded);
+        }
+    }
 
     imr::Device imr_device(context, *selected_physical_device);
     imr::FpsCounter fps_counter;
