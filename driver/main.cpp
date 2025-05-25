@@ -517,6 +517,9 @@ int main(int argc, char** argv) {
         total_time += render_time;
         delta = (float) ((now - prev_frame) / 1000000) / 1000.0f;
         prev_frame = now;
+
+        nframe++;
+        accum++;
     };
 
     auto present_frame = [&](imr::Swapchain::Frame& frame) {
@@ -590,9 +593,6 @@ int main(int argc, char** argv) {
 
                     present_frame(frame);
                 });
-
-            nframe++;
-            accum++;
         }
 
         printf("Rendered %d frames in %zums\n", nframe, total_time / (1000 * 1000));
