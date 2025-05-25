@@ -316,7 +316,7 @@ int main(int argc, char** argv) {
     shady::RunnerConfig runtime_config = {};
     runtime_config.use_validation = false;
     runtime_config.dump_spv = true;
-    compiler_config.input_cf.restructure_with_heuristics = true;
+    // compiler_config.input_cf.restructure_with_heuristics = true;
     compiler_config.dynamic_scheduling = true;
 #ifdef RA_USE_RT_PIPELINES
     compiler_config.dynamic_scheduling = false;
