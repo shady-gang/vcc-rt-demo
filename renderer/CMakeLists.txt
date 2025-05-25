@@ -1,4 +1,4 @@
-get_target_property(NASL_INCLUDE shady::nasl INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(NASL_INCLUDE nasl::nasl INTERFACE_INCLUDE_DIRECTORIES)
 get_target_property(BVH_INCLUDE bvh INTERFACE_INCLUDE_DIRECTORIES)
 
 add_library(renderer INTERFACE)
@@ -39,7 +39,7 @@ list(JOIN RENDERER_LL_FILES ":" RENDERER_LL_FILES_SEMI)
 message("LLVM files to load at runtime: ${RENDERER_LL_FILES_SEMI}")
 
 add_library(renderer_host STATIC ${RENDERER_SRC_FILES})
-target_link_libraries(renderer_host PRIVATE shady::nasl)
+target_link_libraries(renderer_host PRIVATE nasl::nasl)
 target_link_libraries(renderer_host PRIVATE bvh)
 target_include_directories(renderer_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

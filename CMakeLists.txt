@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(glfw3 REQUIRED)
 find_package(shady REQUIRED)
+find_package(nasl REQUIRED)
 find_package(assimp REQUIRED)
 find_package(Vulkan REQUIRED)
 

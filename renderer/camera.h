@@ -3,8 +3,8 @@
 
 #include "ra_math.h"
 
-#include "nasl.h"
-#include "nasl_mat.h"
+#include "nasl/nasl.h"
+#include "nasl/nasl_mat.h"
 
 using namespace nasl;
 

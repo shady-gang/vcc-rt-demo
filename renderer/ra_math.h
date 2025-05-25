@@ -64,7 +64,7 @@ inline RA_FUNCTION float fractf(float x) {
 }
 #endif
 
-#include "nasl.h"
+#include "nasl/nasl.h"
 
 using namespace nasl;
 
